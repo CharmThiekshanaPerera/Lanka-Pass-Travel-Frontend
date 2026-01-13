@@ -1,13 +1,10 @@
 import { Star, MapPin, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import accommodationImg from "@/assets/vendor-accommodation.jpg";
-import toursImg from "@/assets/vendor-tours.jpg";
-import diningImg from "@/assets/vendor-dining.jpg";
 
 const featuredVendors = [
   {
-    image: accommodationImg,
+    image: '/assets/vendor-accommodation.jpg',
     category: "Accommodation",
     name: "Jungle Retreat Ella",
     location: "Ella, Sri Lanka",
@@ -17,7 +14,7 @@ const featuredVendors = [
     price: "From $85/night",
   },
   {
-    image: toursImg,
+    image: '/assets/vendor-tours.jpg',
     category: "Tours & Safari",
     name: "Wild Lanka Expeditions",
     location: "Yala National Park",
@@ -27,7 +24,7 @@ const featuredVendors = [
     price: "From $120/person",
   },
   {
-    image: diningImg,
+    image: "/assets/vendor-dining.jpg",
     category: "Culinary Experience",
     name: "Spice Kitchen Galle",
     location: "Galle Fort",

@@ -162,7 +162,7 @@ const VendorProfile = () => {
             {/* Avatar */}
             <div className="relative">
               <Avatar className="w-24 h-24 md:w-32 md:h-32 border-4 border-primary/20">
-                <AvatarImage src="src/assets/images.jpg" alt={vendor.businessName} />
+                <AvatarImage src="/assets/images.jpg" alt={vendor.businessName} />
                 <AvatarFallback className="text-2xl bg-primary/10 text-primary">
                   {vendor.businessName.split(' ').map(n => n[0]).join('')}
                 </AvatarFallback>

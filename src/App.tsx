@@ -10,7 +10,6 @@ import VendorLogin from "./pages/VendorLogin";
 import VendorProfile from "./pages/VendorProfile";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
-import siteBackground from "./assets/site-background.jpg";
 
 const queryClient = new QueryClient();
 
@@ -20,7 +19,7 @@ const App = () => (
       {/* Global Background with Glassmorphism */}
       <div 
         className="site-background"
-        style={{ backgroundImage: `url(${siteBackground})` }}
+        style={{ backgroundImage: `url(${'/assets/site-background.jpg'})` }}
       />
       
       <Toaster />

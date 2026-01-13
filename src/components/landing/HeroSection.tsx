@@ -2,23 +2,21 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Users, Globe, Shield, Wallet, ChevronLeft, ChevronRight, Play } from "lucide-react";
-import heroSlide1 from "@/assets/hero-slide-1.jpg";
-import heroSlide2 from "@/assets/hero-slide-2.jpg";
-import heroSlide3 from "@/assets/hero-slide-3.jpg";
+
 
 const slides = [
   {
-    image: heroSlide1,
+    image: '/assets/hero-slide-1.jpg',
     title: "Partner with Sri Lanka's Premier Travel Platform",
     subtitle: "Join LankaPass and connect with thousands of travelers seeking authentic experiences.",
   },
   {
-    image: heroSlide2,
+    image: '/assets/hero-slide-2.jpg',
     title: "Showcase Your Paradise",
     subtitle: "From pristine beaches to luxury resorts, let travelers discover your unique offerings.",
   },
   {
-    image: heroSlide3,
+    image: '/assets/hero-slide-3.jpg',
     title: "Grow Your Tourism Business",
     subtitle: "Streamline bookings, reach global audiences, and enjoy secure payouts.",
   },
