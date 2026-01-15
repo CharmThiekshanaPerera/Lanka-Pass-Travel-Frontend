@@ -40,3 +40,42 @@
 .read-the-docs {
   color: #888;
 }
+
+      {/* CSS Animations (Add to your global CSS) */}
+        @keyframes float-slow {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        @keyframes float-slower {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-30px) rotate(180deg); }
+        }
+        @keyframes float-delayed {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-25px) rotate(180deg); }
+        }
+        @keyframes float-slowest {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-15px) rotate(180deg); }
+        }
+        @keyframes gradient-x {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        @keyframes progress-line {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-float-slow { animation: float-slow 20s ease-in-out infinite; }
+        .animate-float-slower { animation: float-slower 25s ease-in-out infinite; }
+        .animate-float-delayed { animation: float-delayed 22s ease-in-out infinite; }
+        .animate-float-slowest { animation: float-slowest 18s ease-in-out infinite; }
+        .animate-gradient-x { 
+          animation: gradient-x 15s ease infinite;
+          background-size: 200% 200%;
+        }
+        .animate-progress-line {
+          animation: progress-line 3s ease-in-out infinite;
+          width: 100%;
+          height: 100%;
+        }

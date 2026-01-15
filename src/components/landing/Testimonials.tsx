@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Star, ChevronLeft, ChevronRight, Quote } from "lucide-react";
-import testimonialBg from "@/assets/testimonial-bg.jpg";
 
 const testimonials = [
   {
@@ -69,7 +68,7 @@ const Testimonials = () => {
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img
-          src={testimonialBg}
+          src='/assets/testimonial-bg.jpg'
           alt="Sri Lanka experience"
           className="w-full h-full object-cover"
         />
