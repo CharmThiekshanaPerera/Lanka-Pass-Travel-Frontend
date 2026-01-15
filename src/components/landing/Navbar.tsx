@@ -57,7 +57,7 @@ const Navbar = () => {
               FAQ
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all" />
             </a>
-            <Link to="/vendor-dashboard">
+            <Link to="/vendor-login">
               <Button variant="outline" size="sm">
                 Vendor Login
               </Button>

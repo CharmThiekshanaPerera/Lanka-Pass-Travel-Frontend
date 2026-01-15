@@ -141,7 +141,7 @@ const VendorProfile = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link
-              to="/vendor-dashboard"
+              to="/"
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -162,7 +162,7 @@ const VendorProfile = () => {
             {/* Avatar */}
             <div className="relative">
               <Avatar className="w-24 h-24 md:w-32 md:h-32 border-4 border-primary/20">
-                <AvatarImage src="/placeholder.svg" alt={vendor.businessName} />
+                <AvatarImage src="/assets/images.jpg" alt={vendor.businessName} />
                 <AvatarFallback className="text-2xl bg-primary/10 text-primary">
                   {vendor.businessName.split(' ').map(n => n[0]).join('')}
                 </AvatarFallback>

@@ -28,7 +28,7 @@ const VendorLogin = () => {
         title: "Login Successful",
         description: "Welcome back to your vendor dashboard!",
       });
-      navigate("/vendor-dashboard");
+      navigate("/vendor-profile");
     }, 1500);
   };
 
