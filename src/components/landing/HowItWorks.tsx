@@ -189,10 +189,7 @@ const HowItWorks = () => {
 
         {/* Steps Container */}
         <div className="relative">
-          {/* Progress Line */}
-          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 -translate-y-1/2 bg-gradient-to-r from-transparent via-slate-200 to-transparent overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 animate-progress-line" />
-          </div>
+
 
           {/* Steps Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 relative">
