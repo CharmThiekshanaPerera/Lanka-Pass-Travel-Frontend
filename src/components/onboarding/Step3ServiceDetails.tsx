@@ -77,9 +77,22 @@ const districts = [
 const advanceBookingOptions = ["No advance booking", "24 hours", "48 hours", "72 hours", "Other"];
 
 const currencies = [
-  { code: "LKR", label: "🇱🇰 LKR - Sri Lankan Rupee" },
-  { code: "USD", label: "🇺🇸 USD - US Dollar" },
-  { code: "GBP", label: "🇬🇧 GBP - British Pound" },
+  { code: "LKR", name: "Sri Lankan Rupee" },
+  { code: "USD", name: "US Dollar" },
+  { code: "GBP", name: "British Pound" },
+  { code: "EUR", name: "Euro" },
+  { code: "AUD", name: "Australian Dollar" },
+  { code: "CAD", name: "Canadian Dollar" },
+  { code: "SGD", name: "Singapore Dollar" },
+  { code: "INR", name: "Indian Rupee" },
+  { code: "MVR", name: "Maldivian Rufiyaa" },
+  { code: "THB", name: "Thai Baht" },
+  { code: "MYR", name: "Malaysian Ringgit" },
+  { code: "AED", name: "UAE Dirham" },
+  { code: "QAR", name: "Qatari Riyal" },
+  { code: "SAR", name: "Saudi Riyal" },
+  { code: "CNY", name: "Chinese Yuan" },
+  { code: "JPY", name: "Japanese Yen" },
 ];
 
 const emptyService = {
@@ -197,10 +210,11 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
 
           {/* Service Name */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">
+            <Label htmlFor={`serviceName-${index}`} className="text-sm font-medium">
               Service Name <span className="text-destructive">*</span>
             </Label>
             <Input
+              id={`serviceName-${index}`}
               placeholder="e.g., Sunset Beach Tour"
               value={service.serviceName}
               onChange={(e) => updateService(index, "serviceName", e.target.value)}
@@ -306,15 +320,18 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
           {/* Languages Offered */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Languages Offered</Label>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-xs text-muted-foreground">
+              Select all languages you can offer this service in
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               {languages.map((lang) => (
                 <button
                   key={lang}
                   type="button"
                   onClick={() => toggleArrayItem(index, "languagesOffered", lang)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     (service.languagesOffered || []).includes(lang)
-                      ? "bg-secondary text-secondary-foreground"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
                   }`}
                 >
@@ -324,7 +341,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
             </div>
             {(service.languagesOffered || []).includes("Other") && (
               <Input
-                placeholder="List other languages"
+                placeholder="Please list other languages"
                 value={service.languagesOther}
                 onChange={(e) => updateService(index, "languagesOther", e.target.value)}
                 className="mt-2"
@@ -375,13 +392,16 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
           {/* Operating Days */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Operating Days</Label>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-xs text-muted-foreground">
+              Select all days when this service is available
+            </p>
+            <div className="grid grid-cols-7 gap-2 max-w-md">
               {days.map((day) => (
                 <button
                   key={day}
                   type="button"
                   onClick={() => toggleArrayItem(index, "operatingDays", day)}
-                  className={`w-12 h-10 rounded-lg text-sm font-medium transition-all ${
+                  className={`w-full h-12 rounded-lg text-sm font-medium transition-all ${
                     (service.operatingDays || []).includes(day)
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -393,7 +413,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
             </div>
           </div>
 
-                    {/* BLACKOUT DATES SECTION - MOVED FROM STEP 4 */}
+          {/* BLACKOUT DATES SECTION */}
           <div className="pt-4 border-t border-border">
             <h4 className="font-display text-lg font-semibold text-foreground mb-4">Blackout Dates</h4>
             <p className="text-sm text-muted-foreground mb-4">
@@ -403,7 +423,6 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
             <div className="space-y-4">
               {/* Quick Options */}
               <div className="flex flex-wrap gap-4">
-               
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id={`holidays-${index}`}
@@ -423,7 +442,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal"
+                      className="w-full justify-start text-left font-normal h-12"
                     >
                       <Calendar className="mr-2 h-4 w-4" />
                       {service.blackoutDates?.length > 0 
@@ -478,7 +497,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 placeholder="9"
                 value={service.operatingHoursFrom}
                 onChange={(e) => updateService(index, "operatingHoursFrom", e.target.value)}
-                className="w-20"
+                className="w-20 h-12"
                 min="1"
                 max="12"
               />
@@ -500,7 +519,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 placeholder="5"
                 value={service.operatingHoursTo}
                 onChange={(e) => updateService(index, "operatingHoursTo", e.target.value)}
-                className="w-20"
+                className="w-20 h-12"
                 min="1"
                 max="12"
               />
@@ -522,15 +541,18 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
           {/* Locations Covered */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Locations / Districts Covered</Label>
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+            <p className="text-xs text-muted-foreground">
+              Select all districts where this service is available
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
               {districts.map((district) => (
                 <button
                   key={district}
                   type="button"
                   onClick={() => toggleArrayItem(index, "locationsCovered", district)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     (service.locationsCovered || []).includes(district)
-                      ? "bg-accent text-accent-foreground"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
                   }`}
                 >
@@ -563,17 +585,17 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 placeholder="Specify advance booking time"
                 value={service.advanceBookingOther}
                 onChange={(e) => updateService(index, "advanceBookingOther", e.target.value)}
-                className="mt-2"
+                className="mt-2 h-12"
               />
             )}
           </div>
 
-          {/* PRICING SECTION - MOVED FROM STEP 4 */}
+          {/* PRICING SECTION */}
           <div className="pt-4 border-t border-border">
             <h4 className="font-display text-lg font-semibold text-foreground mb-4">Pricing</h4>
             
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Currency Selection */}
+              {/* Currency Selection - Clean Dropdown */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   Currency <span className="text-destructive">*</span>
@@ -583,12 +605,16 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                   onValueChange={(value) => updateService(index, "currency", value)}
                 >
                   <SelectTrigger className="h-12">
-                    <SelectValue />
+                    <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
                     {currencies.map((curr) => (
                       <SelectItem key={curr.code} value={curr.code}>
-                        {curr.label}
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{curr.code}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{curr.name}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -601,15 +627,17 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                   Retail Price <span className="text-destructive">*</span>
                 </Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    {service.currency || "LKR"}
-                  </span>
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <span className="font-medium">
+                      {currencies.find(c => c.code === service.currency)?.code || "LKR"}
+                    </span>
+                  </div>
                   <Input
                     type="number"
                     placeholder="0.00"
                     value={service.retailPrice}
                     onChange={(e) => updateService(index, "retailPrice", e.target.value)}
-                    className="pl-14"
+                    className="pl-14 h-12"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -618,8 +646,6 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
               </div>
             </div>
           </div>
-
-
 
           {/* Additional Info Fields */}
           <div className="grid md:grid-cols-2 gap-6">
@@ -630,6 +656,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 value={service.notSuitableFor}
                 onChange={(e) => updateService(index, "notSuitableFor", e.target.value)}
                 rows={2}
+                className="resize-none"
               />
             </div>
 
@@ -640,6 +667,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 value={service.importantInfo}
                 onChange={(e) => updateService(index, "importantInfo", e.target.value)}
                 rows={2}
+                className="resize-none"
               />
             </div>
           </div>
@@ -651,6 +679,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
               value={service.cancellationPolicy}
               onChange={(e) => updateService(index, "cancellationPolicy", e.target.value)}
               rows={2}
+              className="resize-none"
             />
           </div>
 
@@ -661,6 +690,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
               value={service.accessibilityInfo}
               onChange={(e) => updateService(index, "accessibilityInfo", e.target.value)}
               rows={2}
+              className="resize-none"
             />
           </div>
         </div>
@@ -670,7 +700,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
       <Button
         variant="outline"
         onClick={addService}
-        className="w-full border-dashed border-2"
+        className="w-full h-12 border-dashed border-2"
       >
         <Plus className="w-4 h-4 mr-2" />
         Add Another Service
