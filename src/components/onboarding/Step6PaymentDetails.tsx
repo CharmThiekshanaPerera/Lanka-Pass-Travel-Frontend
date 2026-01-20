@@ -133,68 +133,86 @@ const Step6PaymentDetails = ({ formData, updateFormData }: Step6Props) => {
           />
         </div>
       </div>
+ 
+{/* 
+PAYOUT PREFERENCES CARD - SAVED FOR FUTURE USE
 
-      {/* Payout Preferences Card */}
-      <div className="bg-card rounded-2xl p-6 shadow-soft border border-border space-y-6">
-        <h3 className="font-display text-lg font-semibold text-foreground">
-          Payout Preferences
-        </h3>
+This component allows vendors to set their preferred payout frequency and date.
+Uncomment this when implementing payout settings in the payment preferences section.
 
-        {/* Payout Cycle */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">
-            Preferred Payout Cycle <span className="text-destructive">*</span>
-          </Label>
-          <Select
-            value={formData.payoutCycle || ""}
-            onValueChange={(value) => updateFormData("payoutCycle", value)}
-          >
-            <SelectTrigger className="h-12">
-              <SelectValue placeholder="How often would you like to be paid?" />
-            </SelectTrigger>
-            <SelectContent>
-              {payoutCycles.map((cycle) => (
-                <SelectItem key={cycle.value} value={cycle.value}>
-                  {cycle.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+<div className="bg-card rounded-2xl p-6 shadow-soft border border-border space-y-6">
+  <h3 className="font-display text-lg font-semibold text-foreground">
+    Payout Preferences
+  </h3>
 
-        {/* Payout Date (for monthly) */}
-        {(formData.payoutCycle === "monthly" || formData.payoutCycle === "quarterly") && (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Payout Date <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={formData.payoutDate || ""}
-              onValueChange={(value) => updateFormData("payoutDate", value)}
-            >
-              <SelectTrigger className="h-12">
-                <SelectValue placeholder="Select payout date" />
-              </SelectTrigger>
-              <SelectContent>
-                {payoutDates.map((date) => (
-                  <SelectItem key={date.value} value={date.value}>
-                    {date.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+  <div className="space-y-2">
+    <Label className="text-sm font-medium">
+      Preferred Payout Cycle <span className="text-destructive">*</span>
+    </Label>
+    <Select
+      value={formData.payoutCycle || ""}
+      onValueChange={(value) => updateFormData("payoutCycle", value)}
+    >
+      <SelectTrigger className="h-12">
+        <SelectValue placeholder="How often would you like to be paid?" />
+      </SelectTrigger>
+      <SelectContent>
+        {payoutCycles.map((cycle) => (
+          <SelectItem key={cycle.value} value={cycle.value}>
+            {cycle.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
 
-        {/* Info Box */}
-        <div className="bg-ocean-light rounded-xl p-4 border border-secondary/20">
-          <p className="text-sm text-foreground">
-            <strong>How payouts work:</strong> We process payouts according to your preference. 
-            You'll receive an email notification before each payout with a summary of your earnings.
-          </p>
-        </div>
-      </div>
+  {(formData.payoutCycle === "monthly" || formData.payoutCycle === "quarterly") && (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium">
+        Payout Date <span className="text-destructive">*</span>
+      </Label>
+      <Select
+        value={formData.payoutDate || ""}
+        onValueChange={(value) => updateFormData("payoutDate", value)}
+      >
+        <SelectTrigger className="h-12">
+          <SelectValue placeholder="Select payout date" />
+        </SelectTrigger>
+        <SelectContent>
+          {payoutDates.map((date) => (
+            <SelectItem key={date.value} value={date.value}>
+              {date.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )}
 
+  <div className="bg-ocean-light rounded-xl p-4 border border-secondary/20">
+    <p className="text-sm text-foreground">
+      <strong>How payouts work:</strong> We process payouts according to your preference. 
+      You'll receive an email notification before each payout with a summary of your earnings.
+    </p>
+  </div>
+</div>
+
+ADD THESE CONSTANTS WHEN UNCOMMENTING:
+
+const payoutCycles = [
+  { value: "weekly", label: "Weekly (Every Monday)" },
+  { value: "biweekly", label: "Bi-Weekly (Every other Monday)" },
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+];
+
+const payoutDates = [
+  { value: "1", label: "1st of the month" },
+  { value: "15", label: "15th of the month" },
+  { value: "last", label: "Last day of the month" },
+];
+
+*/}
       {/* Support Contact */}
       <SupportContact />
     </div>
