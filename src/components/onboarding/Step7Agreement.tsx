@@ -33,7 +33,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
         </p>
       </div>
 
-      {/* Agreement Period */}
+      {/* 
       <div className="bg-card rounded-2xl p-6 shadow-soft border border-border space-y-6">
         <div className="flex items-center gap-3">
           <CalendarDays className="w-6 h-6 text-primary" />
@@ -79,7 +79,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
           />
         </div>
       </div>
-
+Agreement Period */}
       {/* Terms & Conditions */}
       <div className="bg-card rounded-2xl p-6 shadow-soft border border-border space-y-5">
         <div className="flex items-center gap-3">

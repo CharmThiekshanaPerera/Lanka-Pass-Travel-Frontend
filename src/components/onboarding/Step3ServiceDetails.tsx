@@ -3,7 +3,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -11,8 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Calendar } from "lucide-react";
 import SupportContact from "./SupportContact";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 interface Step3Props {
   formData: any;
@@ -73,6 +76,12 @@ const districts = [
 
 const advanceBookingOptions = ["No advance booking", "24 hours", "48 hours", "72 hours", "Other"];
 
+const currencies = [
+  { code: "LKR", label: "🇱🇰 LKR - Sri Lankan Rupee" },
+  { code: "USD", label: "🇺🇸 USD - US Dollar" },
+  { code: "GBP", label: "🇬🇧 GBP - British Pound" },
+];
+
 const emptyService = {
   serviceName: "",
   serviceCategory: "",
@@ -86,6 +95,7 @@ const emptyService = {
   languagesOther: "",
   groupSizeMin: "",
   groupSizeMax: "",
+  dailyCapacity: "",
   operatingHoursFrom: "",
   operatingHoursFromPeriod: "AM",
   operatingHoursTo: "",
@@ -98,6 +108,13 @@ const emptyService = {
   importantInfo: "",
   cancellationPolicy: "",
   accessibilityInfo: "",
+  // Pricing fields
+  currency: "LKR",
+  retailPrice: "",
+  // Blackout dates
+  blackoutDates: [] as Date[],
+  blackoutWeekends: false,
+  blackoutHolidays: false,
 };
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -130,6 +147,19 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
     updateService(index, field, updated);
   };
 
+  const handleBlackoutDateToggle = (index: number, date: Date) => {
+    const currentDates = services[index].blackoutDates || [];
+    const isSelected = currentDates.some((d: Date) => 
+      d.toDateString() === date.toDateString()
+    );
+    
+    const updated = isSelected
+      ? currentDates.filter((d: Date) => d.toDateString() !== date.toDateString())
+      : [...currentDates, date];
+    
+    updateService(index, "blackoutDates", updated);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Section Header */}
@@ -138,7 +168,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
           Your Services
         </h2>
         <p className="text-muted-foreground">
-          What do you offer? Explain your services, operating hours, how customers redeem their pass, and anything important they should know.
+          What do you offer? Explain your services, pricing, availability, and anything important travelers should know.
         </p>
       </div>
 
@@ -325,6 +355,23 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
             </div>
           </div>
 
+          {/* Daily Capacity */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Daily Capacity / Slots <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              type="number"
+              placeholder="Maximum bookings per day"
+              value={service.dailyCapacity}
+              onChange={(e) => updateService(index, "dailyCapacity", e.target.value)}
+              className="max-w-xs"
+            />
+            <p className="text-xs text-muted-foreground">
+              Maximum number of bookings you can accommodate per day
+            </p>
+          </div>
+
           {/* Operating Days */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Operating Days</Label>
@@ -343,6 +390,82 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                   {day}
                 </button>
               ))}
+            </div>
+          </div>
+
+                    {/* BLACKOUT DATES SECTION - MOVED FROM STEP 4 */}
+          <div className="pt-4 border-t border-border">
+            <h4 className="font-display text-lg font-semibold text-foreground mb-4">Blackout Dates</h4>
+            <p className="text-sm text-muted-foreground mb-4">
+              Select dates or periods when your service is unavailable
+            </p>
+            
+            <div className="space-y-4">
+              {/* Quick Options */}
+              <div className="flex flex-wrap gap-4">
+               
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`holidays-${index}`}
+                    checked={service.blackoutHolidays || false}
+                    onCheckedChange={(checked) => updateService(index, "blackoutHolidays", checked)}
+                  />
+                  <Label htmlFor={`holidays-${index}`} className="text-sm cursor-pointer">
+                    Exclude public holidays
+                  </Label>
+                </div>
+              </div>
+
+              {/* Calendar Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Select Specific Dates</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {service.blackoutDates?.length > 0 
+                        ? `${service.blackoutDates.length} date(s) selected`
+                        : "Select dates"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="multiple"
+                      selected={service.blackoutDates || []}
+                      onSelect={(dates) => updateService(index, "blackoutDates", dates || [])}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                {/* Selected Dates List */}
+                {service.blackoutDates?.length > 0 && (
+                  <div className="mt-3 p-3 bg-muted/30 rounded-lg">
+                    <p className="text-sm font-medium mb-2">Selected dates:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {service.blackoutDates.map((date: Date, idx: number) => (
+                        <div
+                          key={idx}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-background rounded-md text-sm"
+                        >
+                          <span>{format(date, "MMM d, yyyy")}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleBlackoutDateToggle(index, date)}
+                            className="text-muted-foreground hover:text-destructive ml-1"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -444,6 +567,59 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
               />
             )}
           </div>
+
+          {/* PRICING SECTION - MOVED FROM STEP 4 */}
+          <div className="pt-4 border-t border-border">
+            <h4 className="font-display text-lg font-semibold text-foreground mb-4">Pricing</h4>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Currency Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Currency <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={service.currency || "LKR"}
+                  onValueChange={(value) => updateService(index, "currency", value)}
+                >
+                  <SelectTrigger className="h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencies.map((curr) => (
+                      <SelectItem key={curr.code} value={curr.code}>
+                        {curr.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Retail Price */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Retail Price <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {service.currency || "LKR"}
+                  </span>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={service.retailPrice}
+                    onChange={(e) => updateService(index, "retailPrice", e.target.value)}
+                    className="pl-14"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Price that will be shown to travelers
+                </p>
+              </div>
+            </div>
+          </div>
+
+
 
           {/* Additional Info Fields */}
           <div className="grid md:grid-cols-2 gap-6">

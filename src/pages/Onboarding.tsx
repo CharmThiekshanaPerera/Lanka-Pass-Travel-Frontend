@@ -7,7 +7,7 @@ import StepIndicator from "@/components/onboarding/StepIndicator";
 import Step1VendorBasics from "@/components/onboarding/Step1VendorBasics";
 import Step2BusinessDetails from "@/components/onboarding/Step2BusinessDetails";
 import Step3ServiceDetails from "@/components/onboarding/Step3ServiceDetails";
-import Step4PricingAvailability from "@/components/onboarding/Step4PricingAvailability";
+// Step4 removed - merged into Step3
 import Step5MediaContent from "@/components/onboarding/Step5MediaContent";
 import Step6PaymentDetails from "@/components/onboarding/Step6PaymentDetails";
 import Step7Agreement from "@/components/onboarding/Step7Agreement";
@@ -15,11 +15,11 @@ import Step7Agreement from "@/components/onboarding/Step7Agreement";
 const steps = [
   { number: 1, title: "About Your Business", shortTitle: "Basics" },
   { number: 2, title: "Business Details", shortTitle: "Details" },
-  { number: 3, title: "Your Services", shortTitle: "Services" },
-  { number: 4, title: "Pricing & Availability", shortTitle: "Pricing" },
-  { number: 5, title: "Photos & Content", shortTitle: "Media" },
-  { number: 6, title: "Getting Paid", shortTitle: "Payment" },
-  { number: 7, title: "Agreement", shortTitle: "Confirm" },
+  { number: 3, title: "Services & Pricing", shortTitle: "Services" }, // Updated title
+  { number: 4, title: "Photos & Content", shortTitle: "Media" }, // Renumbered
+  { number: 5, title: "Getting Paid", shortTitle: "Payment" }, // Renumbered
+  { number: 6, title: "Agreement", shortTitle: "Confirm" }, // Renumbered
+  // Removed the old step 7 (was step 7, now we have 6 total steps)
 ];
 
 const Onboarding = () => {
@@ -33,7 +33,7 @@ const Onboarding = () => {
   };
 
   const handleNext = () => {
-    if (currentStep < 7) {
+    if (currentStep < 6) { // Changed from 7 to 6
       if (!completedSteps.includes(currentStep)) {
         setCompletedSteps([...completedSteps, currentStep]);
       }
@@ -70,10 +70,9 @@ const Onboarding = () => {
       case 1: return <Step1VendorBasics formData={formData} updateFormData={updateFormData} />;
       case 2: return <Step2BusinessDetails formData={formData} updateFormData={updateFormData} />;
       case 3: return <Step3ServiceDetails formData={formData} updateFormData={updateFormData} />;
-      case 4: return <Step4PricingAvailability formData={formData} updateFormData={updateFormData} />;
-      case 5: return <Step5MediaContent formData={formData} updateFormData={updateFormData} />;
-      case 6: return <Step6PaymentDetails formData={formData} updateFormData={updateFormData} />;
-      case 7: return <Step7Agreement formData={formData} updateFormData={updateFormData} onSubmit={handleSubmit} isSubmitting={isSubmitting} />;
+      case 4: return <Step5MediaContent formData={formData} updateFormData={updateFormData} />; // Step5 becomes Step4
+      case 5: return <Step6PaymentDetails formData={formData} updateFormData={updateFormData} />; // Step6 becomes Step5
+      case 6: return <Step7Agreement formData={formData} updateFormData={updateFormData} onSubmit={handleSubmit} isSubmitting={isSubmitting} />; // Step7 becomes Step6
       default: return null;
     }
   };
@@ -116,7 +115,7 @@ const Onboarding = () => {
         </div>
 
         {/* Navigation Buttons */}
-        {currentStep < 7 && (
+        {currentStep < 6 && ( // Changed from 7 to 6
           <div className="flex justify-between mt-8">
             <Button variant="back" size="lg" onClick={handleBack} disabled={currentStep === 1}>
               <ArrowLeft className="w-4 h-4 mr-2" />
