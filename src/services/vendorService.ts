@@ -360,7 +360,7 @@ class VendorService {
   // Get vendor details
   async getVendor(vendorId: string): Promise<any> {
     try {
-      const response = await api.get(`/api/vendor/${vendorId}`);
+      const response = await api.get(`/api/admin/vendors/${vendorId}`);
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to fetch vendor details');
@@ -377,7 +377,7 @@ class VendorService {
       const params: any = { skip, limit };
       if (status) params.status = status;
 
-      const response = await api.get<VendorListResponse>('/api/vendors', { params });
+      const response = await api.get<VendorListResponse>('/api/admin/vendors', { params });
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to fetch vendors');
@@ -391,13 +391,31 @@ class VendorService {
     reason?: string
   ): Promise<any> {
     try {
-      const data: any = { status };
-      if (reason) data.reason = reason;
-
-      const response = await api.put(`/api/vendor/${vendorId}/status`, data);
+      const data: any = { status, status_reason: reason };
+      const response = await api.patch(`/api/admin/vendors/${vendorId}`, data);
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to update vendor status');
+    }
+  }
+
+  // Get current vendor's profile
+  async getVendorProfile(): Promise<any> {
+    try {
+      const response = await api.get('/api/vendor/profile');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to fetch vendor profile');
+    }
+  }
+
+  // Get current vendor's stats
+  async getVendorStats(): Promise<any> {
+    try {
+      const response = await api.get('/api/vendor/stats');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to fetch vendor stats');
     }
   }
 

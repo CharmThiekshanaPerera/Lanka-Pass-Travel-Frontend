@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +27,10 @@ import {
   Image as ImageIcon,
   Video,
   Shield,
+  Loader2
 } from "lucide-react";
+import { vendorService } from "@/services/vendorService";
+import { toast } from "sonner";
 
 // Mock vendor data - in real app this would come from backend/context
 const mockVendorData = {
@@ -40,13 +43,13 @@ const mockVendorData = {
   mobileNumber: "771234567",
   email: "info@ceylonadventures.lk",
   operatingAreas: ["Colombo", "Galle", "Kandy", "Ella", "Sigiriya"],
-  
+
   // Business Details (Step 2)
   businessRegNumber: "PV123456",
   taxId: "VAT123456789",
   businessAddress: "123 Temple Road, Colombo 03, Sri Lanka",
   documentsVerified: true,
-  
+
   // Services (Step 3)
   services: [
     {
@@ -90,7 +93,7 @@ const mockVendorData = {
       cancellationPolicy: "50% refund for cancellations 48+ hours before",
     },
   ],
-  
+
   // Pricing (Step 4)
   pricing: [
     {
@@ -108,20 +111,20 @@ const mockVendorData = {
       dailyCapacity: "16",
     },
   ],
-  
+
   // Media (Step 5)
   hasLogo: true,
   hasCoverImage: true,
   galleryCount: 5,
   hasPromoVideo: true,
   marketingPermission: true,
-  
+
   // Payment (Step 6)
   bankName: "Bank of Ceylon",
   accountHolderName: "Ceylon Adventures Pvt Ltd",
   accountNumber: "****4567",
   payoutFrequency: "weekly",
-  
+
   // Stats
   rating: 4.8,
   totalReviews: 127,
@@ -132,7 +135,115 @@ const mockVendorData = {
 
 const VendorProfile = () => {
   const [activeTab, setActiveTab] = useState("overview");
-  const vendor = mockVendorData;
+  const [vendor, setVendor] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await vendorService.getVendorProfile();
+        if (response.success) {
+          const v = response.vendor;
+          const s = response.services || [];
+
+          setVendor({
+            vendorType: v.vendor_type,
+            businessName: v.business_name,
+            legalName: v.legal_name || v.business_name,
+            contactPerson: v.contact_person,
+            countryCode: "+94",
+            mobileNumber: v.phone_number,
+            email: v.email,
+            operatingAreas: v.operating_areas || [],
+            businessRegNumber: v.business_reg_number,
+            taxId: v.tax_id,
+            businessAddress: v.business_address,
+            documentsVerified: v.status === "approved",
+            services: s.map((svc: any) => ({
+              serviceName: svc.service_name,
+              serviceCategory: svc.service_category,
+              shortDescription: svc.short_description,
+              whatsIncluded: svc.whats_included,
+              whatsNotIncluded: svc.whats_not_included,
+              durationValue: svc.duration_value,
+              durationUnit: svc.duration_unit,
+              languagesOffered: svc.languages_offered || [],
+              groupSizeMin: svc.group_size_min,
+              groupSizeMax: svc.group_size_max,
+              operatingDays: svc.operating_days || [],
+              locationsCovered: svc.locations_covered || [],
+              advanceBooking: "24 hours",
+              cancellationPolicy: svc.cancellation_policy,
+              operatingHoursFrom: "8",
+              operatingHoursFromPeriod: "AM",
+              operatingHoursTo: "6",
+              operatingHoursToPeriod: "PM",
+            })),
+            pricing: s.map((svc: any) => ({
+              currency: svc.currency,
+              retailPrice: svc.retail_price,
+              commission: 15,
+              netPrice: (svc.retail_price * 0.85).toFixed(2),
+              dailyCapacity: svc.daily_capacity,
+            })),
+            hasLogo: !!v.logo_url,
+            hasCoverImage: !!v.cover_image_url,
+            galleryCount: (v.gallery_urls || []).length,
+            hasPromoVideo: false,
+            marketingPermission: v.marketing_permission,
+            bankName: v.bank_name,
+            accountHolderName: v.account_holder_name,
+            accountNumber: v.account_number,
+            payoutFrequency: "monthly",
+            rating: 5.0,
+            totalReviews: 0,
+            totalBookings: 0,
+            memberSince: new Date(v.created_at).toLocaleString('default', { month: 'long', year: 'numeric' }),
+            verificationStatus: v.status,
+            documents: {
+              regCertificate: v.reg_certificate_url,
+              nicPassport: v.nic_passport_url,
+              tourismLicense: v.tourism_license_url
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+        toast.error("Failed to load profile data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground animate-pulse">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!vendor) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Error Loading Profile</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">We couldn't find your vendor profile. Please contact support.</p>
+            <Button className="mt-4 w-full" onClick={() => window.location.reload()}>Retry</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-12">
@@ -184,7 +295,7 @@ const VendorProfile = () => {
                 )}
               </div>
               <p className="text-muted-foreground mb-3">{vendor.legalName}</p>
-              
+
               <div className="flex flex-wrap gap-4 text-sm">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                   <Building2 className="w-4 h-4" />
@@ -381,7 +492,7 @@ const VendorProfile = () => {
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6">
                   <p className="text-muted-foreground">{service.shortDescription}</p>
-                  
+
                   <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="flex items-center gap-2">
                       <Clock className="w-5 h-5 text-primary" />
@@ -526,7 +637,7 @@ const VendorProfile = () => {
                   <div>
                     <p className="font-medium">Marketing Permission</p>
                     <p className="text-sm text-muted-foreground">
-                      {vendor.marketingPermission 
+                      {vendor.marketingPermission
                         ? "You have granted permission to use your media for marketing purposes."
                         : "Marketing permission not granted."}
                     </p>
