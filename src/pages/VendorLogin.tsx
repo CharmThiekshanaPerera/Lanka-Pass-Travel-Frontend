@@ -15,6 +15,7 @@ const VendorLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -23,7 +24,7 @@ const VendorLogin = () => {
     setIsLoading(true);
 
     try {
-      await useAuth().login(email, password);
+      await login(email, password);
       toast({
         title: "Login Successful",
         description: "Welcome back!",
