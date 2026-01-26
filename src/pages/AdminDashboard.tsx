@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { vendorService } from "@/services/vendorService";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Define the shape of our frontend vendor object (mapping from backend)
 interface VendorSubmission {
@@ -103,6 +104,13 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rejectionReason, setRejectionReason] = useState("");
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/admin/login");
+  };
 
   const fetchVendors = async () => {
     setIsLoading(true);
@@ -300,12 +308,10 @@ const AdminDashboard = () => {
                 <p className="text-xs text-muted-foreground">Vendor Verification Portal</p>
               </div>
             </div>
-            <Link to="/">
-              <Button variant="outline" size="sm" className="gap-2">
-                <LogOut className="w-4 h-4" />
-                Logout
-              </Button>
-            </Link>
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" />
+              Logout
+            </Button>
           </div>
         </div>
       </div>
