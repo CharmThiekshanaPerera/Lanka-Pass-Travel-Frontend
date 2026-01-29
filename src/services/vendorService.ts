@@ -419,7 +419,6 @@ class VendorService {
     }
   }
 
-  // Check vendor registration status
   async checkRegistrationStatus(email: string): Promise<any> {
     try {
       // This would typically check if email is already registered
@@ -428,6 +427,56 @@ class VendorService {
       return response.data;
     } catch (error: any) {
       throw new Error('Failed to check registration status');
+    }
+  }
+
+  // --- Manager Management (Admin Only) ---
+
+  async getManagers(): Promise<{ success: boolean; managers: any[] }> {
+    try {
+      const response = await api.get('/api/admin/managers');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to fetch managers');
+    }
+  }
+
+  async createManager(data: any): Promise<any> {
+    try {
+      const response = await api.post('/api/admin/managers', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to create manager');
+    }
+  }
+
+  async deleteManager(userId: string): Promise<any> {
+    try {
+      const response = await api.delete(`/api/admin/managers/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to delete manager');
+    }
+  }
+
+  // --- Export Data ---
+  async exportVendors(): Promise<void> {
+    try {
+      const response = await api.get('/api/admin/export/vendors', {
+        responseType: 'blob'
+      });
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `vendors_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error: any) {
+      console.error("Export error:", error);
+      throw new Error(error.response?.data?.detail || 'Failed to export vendors');
     }
   }
 }
