@@ -61,6 +61,7 @@ import {
 import { toast } from "sonner";
 import { vendorService } from "@/services/vendorService";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
 
 // Define the shape of our frontend vendor object (mapping from backend)
 interface VendorSubmission {
@@ -136,11 +137,9 @@ const AdminDashboard = () => {
 
     setUpdatingServiceId(serviceId);
     try {
-      const token = localStorage.getItem("access_token");
       await api.patch(
         `/api/admin/services/${serviceId}/commission`,
-        { commission_percent: Number(value) },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { commission_percent: Number(value) }
       );
       toast.success("Commission updated successfully");
 
@@ -450,18 +449,18 @@ const AdminDashboard = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="w-full">
-          {isAdmin && (
-            <TabsList className="mb-8">
-              <TabsTrigger value="overview" className="gap-2">
-                <LayoutDashboard className="w-4 h-4" />
-                Overview
-              </TabsTrigger>
+          <TabsList className="mb-8">
+            <TabsTrigger value="overview" className="gap-2">
+              <LayoutDashboard className="w-4 h-4" />
+              Overview
+            </TabsTrigger>
+            {isAdmin && (
               <TabsTrigger value="managers" className="gap-2">
                 <Users className="w-4 h-4" />
                 Managers
               </TabsTrigger>
-            </TabsList>
-          )}
+            )}
+          </TabsList>
 
           <TabsContent value="overview">
             {/* Stats Cards */}
