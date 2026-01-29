@@ -4,7 +4,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'vendor' | 'admin' | 'user';
+  role: 'vendor' | 'admin' | 'user' | 'manager';
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -34,15 +34,15 @@ export const authService = {
     const formData = new FormData();
     formData.append('username', data.email);
     formData.append('password', data.password);
-    
+
     const response = await api.post('/api/auth/login', formData);
     const { access_token, user } = response.data;
-    
+
     if (access_token) {
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('user', JSON.stringify(user));
     }
-    
+
     return response.data;
   },
 
@@ -50,12 +50,12 @@ export const authService = {
   register: async (data: RegisterData): Promise<AuthResponse> => {
     const response = await api.post('/api/auth/register', data);
     const { access_token, user } = response.data;
-    
+
     if (access_token) {
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('user', JSON.stringify(user));
     }
-    
+
     return response.data;
   },
 

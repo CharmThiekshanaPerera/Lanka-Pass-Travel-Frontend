@@ -5,9 +5,10 @@ import LoadingScreen from '@/components/LoadingScreen';
 
 interface ProtectedRouteProps {
   children: ReactNode;
+  loginPath?: string;
 }
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+export const ProtectedRoute = ({ children, loginPath = "/vendor-login" }: ProtectedRouteProps) => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
@@ -15,7 +16,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/vendor-login" replace />;
+    return <Navigate to={loginPath} replace />;
   }
 
   return <>{children}</>;

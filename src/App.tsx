@@ -71,13 +71,21 @@ const AppContent = () => {
           <Route
             path="/vendor-login"
             element={
-              !user ? <VendorLogin /> : <Navigate to="/vendor-dashboard" />
+              !user ? (
+                <VendorLogin />
+              ) : (
+                <Navigate to={user.role === 'admin' ? "/admin" : "/vendor-dashboard"} />
+              )
             }
           />
           <Route
             path="/admin/login"
             element={
-              !user ? <AdminLogin /> : <Navigate to="/admin" />
+              !user ? (
+                <AdminLogin />
+              ) : (
+                <Navigate to={user.role === 'admin' ? "/admin" : "/vendor-dashboard"} />
+              )
             }
           />
           <Route
@@ -91,7 +99,7 @@ const AppContent = () => {
           <Route
             path="/vendor-dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute loginPath="/vendor-login">
                 <RoleBasedRoute allowedRoles={['vendor', 'admin']}>
                   <VendorDashboard />
                 </RoleBasedRoute>
@@ -102,7 +110,7 @@ const AppContent = () => {
           <Route
             path="/vendor-profile"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute loginPath="/vendor-login">
                 <RoleBasedRoute allowedRoles={['vendor', 'admin']}>
                   <VendorProfile />
                 </RoleBasedRoute>
@@ -114,7 +122,7 @@ const AppContent = () => {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute loginPath="/admin/login">
                 <RoleBasedRoute allowedRoles={['admin']}>
                   <AdminDashboard />
                 </RoleBasedRoute>
