@@ -27,22 +27,22 @@ const AdminLogin = () => {
             // This prevents App.tsx from redirecting non-admins to vendor dashboard
             const response = await authService.login({ email, password });
 
-            if (response.user.role === 'admin') {
+            if (['admin', 'manager'].includes(response.user.role)) {
                 toast({
                     title: "Login Successful",
-                    description: "Welcome to the Admin Panel",
+                    description: `Welcome to the ${response.user.role === 'admin' ? 'Admin' : 'Manager'} Panel`,
                 });
 
                 // Now verify with context to update global state and redirect
                 await refreshUser();
                 navigate("/admin");
             } else {
-                // If not admin, clear constraints efficiently
+                // If not admin/manager, clear constraints efficiently
                 authService.logout();
                 toast({
                     variant: "destructive",
                     title: "Access Denied",
-                    description: "This account does not have administrator privileges.",
+                    description: "This account does not have staff privileges.",
                 });
             }
         } catch (error: any) {
