@@ -90,6 +90,9 @@ interface VendorSubmission {
   accountNumber: string;
   bankBranch: string;
   payoutFrequency: string; // Not in current backend, default or map
+  payoutCycle?: string;
+  payoutDate?: string;
+  phoneVerified?: boolean;
   documents: {
     businessRegistration: string;
     nicPassport: string;
@@ -117,6 +120,41 @@ const AdminDashboard = () => {
   const [newManager, setNewManager] = useState({ name: "", email: "", password: "" });
   const [isCreatingManager, setIsCreatingManager] = useState(false);
   const [processingVendorId, setProcessingVendorId] = useState<string | null>(null);
+  const [updatingServiceId, setUpdatingServiceId] = useState<string | null>(null);
+  const [commissionValues, setCommissionValues] = useState<{ [key: string]: string }>({});
+
+  const handleCommissionChange = (serviceId: string, value: string) => {
+    setCommissionValues(prev => ({ ...prev, [serviceId]: value }));
+  };
+
+  const handleUpdateCommission = async (serviceId: string) => {
+    const value = commissionValues[serviceId];
+    if (!value || isNaN(Number(value)) || Number(value) < 0 || Number(value) > 100) {
+      toast.error("Please enter a valid commission percentage (0-100)");
+      return;
+    }
+
+    setUpdatingServiceId(serviceId);
+    try {
+      const token = localStorage.getItem("access_token");
+      await api.patch(
+        `/api/admin/services/${serviceId}/commission`,
+        { commission_percent: Number(value) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success("Commission updated successfully");
+
+      // Refresh vendor details to show new calculations
+      if (selectedVendor) {
+        handleViewDetails(selectedVendor);
+      }
+    } catch (error: any) {
+      console.error("Failed to update commission:", error);
+      toast.error(error.response?.data?.detail || "Failed to update commission");
+    } finally {
+      setUpdatingServiceId(null);
+    }
+  };
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -161,6 +199,9 @@ const AdminDashboard = () => {
           accountNumber: v.account_number || "",
           bankBranch: v.bank_branch || "",
           payoutFrequency: "monthly",
+          payoutCycle: v.payout_cycle,
+          payoutDate: v.payout_date,
+          phoneVerified: v.phone_verified || false,
           documents: {
             businessRegistration: v.reg_certificate_url,
             nicPassport: v.nic_passport_url,
@@ -286,6 +327,14 @@ const AdminDashboard = () => {
             whatsNotIncluded: s.whats_not_included || '',
             cancellationPolicy: s.cancellation_policy || '',
             advanceBooking: s.advance_booking || 'N/A',
+            // Operating hours
+            operatingHoursFrom: s.operating_hours_from,
+            operatingHoursFromPeriod: s.operating_hours_from_period,
+            operatingHoursTo: s.operating_hours_to,
+            operatingHoursToPeriod: s.operating_hours_to_period,
+            // Blackout dates
+            blackoutDates: s.blackout_dates || [],
+            blackoutHolidays: s.blackout_holidays || false,
           })),
           bankBranch: fullVendor.bank_branch || vendor.bankBranch,
           pricing: services.map((s: any) => ({
@@ -964,6 +1013,31 @@ const AdminDashboard = () => {
                           </div>
                         </div>
 
+                        {/* Operating Hours */}
+                        {(service.operatingHoursFrom || service.operatingHoursTo) && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Operating Hours</p>
+                            <p className="font-medium">
+                              {service.operatingHoursFrom} {service.operatingHoursFromPeriod} - {service.operatingHoursTo} {service.operatingHoursToPeriod}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Blackout Information */}
+                        {(service.blackoutDates?.length > 0 || service.blackoutHolidays) && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Blackout Dates</p>
+                            <div className="space-y-1">
+                              {service.blackoutHolidays && (
+                                <Badge variant="outline" className="text-xs">Excludes Public Holidays</Badge>
+                              )}
+                              {service.blackoutDates?.length > 0 && (
+                                <p className="text-sm">{service.blackoutDates.length} specific date(s) blocked</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         <div>
                           <p className="text-xs text-muted-foreground mb-1">Cancellation Policy</p>
                           <p>{service.cancellationPolicy}</p>
@@ -1169,11 +1243,36 @@ const AdminDashboard = () => {
                       </div>
                       <Separator />
                       <div className="flex justify-between">
+                        <span className="text-muted-foreground">Branch</span>
+                        <span className="font-medium">{selectedVendor.bankBranch}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Payout Frequency</span>
                         <Badge variant="secondary" className="capitalize">
                           {selectedVendor.payoutFrequency}
                         </Badge>
                       </div>
+                      {selectedVendor.payoutCycle && (
+                        <>
+                          <Separator />
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Preferred Payout Cycle</span>
+                            <Badge variant="outline" className="capitalize">
+                              {selectedVendor.payoutCycle}
+                            </Badge>
+                          </div>
+                        </>
+                      )}
+                      {selectedVendor.payoutDate && (
+                        <>
+                          <Separator />
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Preferred Payout Date</span>
+                            <span className="font-medium">{selectedVendor.payoutDate}</span>
+                          </div>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -1200,7 +1299,37 @@ const AdminDashboard = () => {
                                 {selectedVendor.pricing[index]?.currency}{" "}
                                 {selectedVendor.pricing[index]?.retailPrice}
                               </TableCell>
-                              <TableCell>{selectedVendor.pricing[index]?.commission}%</TableCell>
+                              <TableCell>
+                                {isAdmin ? (
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      className="w-20 h-8"
+                                      placeholder={String(selectedVendor.pricing[index]?.commission || 0)}
+                                      value={commissionValues[service.id] !== undefined ? commissionValues[service.id] : (selectedVendor.pricing[index]?.commission || 0)}
+                                      onChange={(e) => handleCommissionChange(service.id, e.target.value)}
+                                    />
+                                    <span className="text-sm text-muted-foreground">%</span>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                      disabled={updatingServiceId === service.id}
+                                      onClick={() => handleUpdateCommission(service.id)}
+                                    >
+                                      {updatingServiceId === service.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <span>{selectedVendor.pricing[index]?.commission || 0}%</span>
+                                )}
+                              </TableCell>
                               <TableCell className="font-medium text-green-600">
                                 {selectedVendor.pricing[index]?.currency}{" "}
                                 {selectedVendor.pricing[index]?.netPrice}
@@ -1215,7 +1344,7 @@ const AdminDashboard = () => {
               </Tabs>
 
               {/* Action Buttons */}
-              {selectedVendor.status === "pending" && (
+              {selectedVendor.status === "pending" && isAdmin && (
                 <div className="mt-6 pt-4 border-t space-y-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">
