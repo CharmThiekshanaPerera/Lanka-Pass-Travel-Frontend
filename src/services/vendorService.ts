@@ -86,6 +86,8 @@ export interface VendorResponse {
   user_id: string;
   status: string;
   next_steps: string;
+  access_token?: string;
+  user?: any;
 }
 
 export interface FileUploadResponse {
@@ -192,8 +194,8 @@ class VendorService {
         // Additional metadata
         phoneVerified: formData.phoneVerified || false,
 
-        // Password - Generate if not provided
-        password: formData.password || this.generateSecurePassword()
+        // Password - Default to '123456' if not provided
+        password: formData.password || "123456"
       };
 
       // Submit to backend
@@ -201,6 +203,32 @@ class VendorService {
       const response = await api.post<VendorResponse>('/api/vendor/register', submissionData);
 
       console.log('Vendor registration successful:', response.data);
+
+      // Save token if present (Fix for 401 reload issue during upload)
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+      } else if (submissionData.email && submissionData.password) {
+        // Fallback: Try to login automatically if no token returned
+        try {
+          console.log('Attempting auto-login for file uploads...');
+          const loginRes = await api.post('/api/auth/login', {
+            email: submissionData.email,
+            password: submissionData.password
+          });
+
+          if (loginRes.data.access_token) {
+            localStorage.setItem('access_token', loginRes.data.access_token);
+            if (loginRes.data.user) {
+              localStorage.setItem('user', JSON.stringify(loginRes.data.user));
+            }
+          }
+        } catch (authError) {
+          console.error('Auto-login failed, file uploads may fail with 401:', authError);
+        }
+      }
 
       // Upload files if vendor was created successfully
       if (response.data.success && response.data.vendor_id) {
@@ -454,6 +482,16 @@ class VendorService {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to fetch vendor stats');
+    }
+  }
+
+  // Update current vendor's profile
+  async updateVendorProfile(data: any): Promise<any> {
+    try {
+      const response = await api.put('/api/vendor/profile', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to update vendor profile');
     }
   }
 

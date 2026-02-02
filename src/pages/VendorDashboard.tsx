@@ -17,7 +17,10 @@ import {
   LogOut,
   Menu,
   X,
-  Loader2
+  User,
+  Loader2,
+  MessageCircle,
+  Image as ImageIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -32,6 +35,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import DashboardStats from "@/components/dashboard/DashboardStats";
@@ -39,6 +52,9 @@ import ServicesList from "@/components/dashboard/ServicesList";
 import BookingsTable from "@/components/dashboard/BookingsTable";
 import EarningsOverview from "@/components/dashboard/EarningsOverview";
 import CalendarView from "@/components/dashboard/CalendarView";
+import ProfileForm from "@/components/dashboard/ProfileForm";
+import MediaGallery from "@/components/dashboard/MediaGallery";
+import SupportChatTab from "@/components/dashboard/SupportChat";
 import { vendorService } from "@/services/vendorService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,13 +66,26 @@ const VendorDashboard = () => {
   const [vendorInfo, setVendorInfo] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
+  const [fullVendorData, setFullVendorData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/vendor-login");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      logout();
+      navigate("/vendor-login");
+      setShowLogoutConfirm(false);
+      setIsLoggingOut(false);
+    }, 2500);
   };
 
   useEffect(() => {
@@ -69,6 +98,7 @@ const VendorDashboard = () => {
 
         if (profileRes.success) {
           const v = profileRes.vendor;
+          setFullVendorData(v);
           setVendorInfo({
             name: v.contact_person,
             businessName: v.business_name,
@@ -97,9 +127,12 @@ const VendorDashboard = () => {
   const navItems = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "services", label: "My Services", icon: Package },
+    { id: "media", label: "Media", icon: ImageIcon },
     { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "bookings", label: "Bookings", icon: Package },
     { id: "earnings", label: "Earnings", icon: DollarSign },
+    { id: "support", label: "Support", icon: MessageCircle },
+    { id: "profile", label: "Profile", icon: User },
   ];
 
   if (isLoading) {
@@ -231,7 +264,7 @@ const VendorDashboard = () => {
                   <DropdownMenuItem>Notification Preferences</DropdownMenuItem>
                   <DropdownMenuItem>Payment Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
+                  <DropdownMenuItem className="text-destructive" onClick={handleLogoutClick}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Logout
                   </DropdownMenuItem>
@@ -272,11 +305,69 @@ const VendorDashboard = () => {
           )}
 
           {activeTab === "services" && <ServicesList services={services} />}
+          {activeTab === "media" && <MediaGallery vendorId={fullVendorData?.id} />}
           {activeTab === "calendar" && <CalendarView />}
           {activeTab === "bookings" && <BookingsTable />}
           {activeTab === "earnings" && <EarningsOverview />}
+          {activeTab === "support" && <SupportChatTab />}
+          {activeTab === "profile" && fullVendorData && (
+            <div className="max-w-4xl mx-auto">
+              <ProfileForm
+                initialData={fullVendorData}
+                onUpdate={() => {
+                  toast.success("Profile updated successfully");
+                  // Trigger a re-fetch of vendor data to update the UI
+                  const fetchData = async () => {
+                    const profileRes = await vendorService.getVendorProfile();
+                    if (profileRes.success) {
+                      setFullVendorData(profileRes.vendor);
+                      setVendorInfo(prev => ({
+                        ...prev,
+                        name: profileRes.vendor.contact_person,
+                        businessName: profileRes.vendor.business_name,
+                        email: profileRes.vendor.email
+                      }));
+                    }
+                  };
+                  fetchData();
+                }}
+              />
+            </div>
+          )}
         </main>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to logout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will need to sign in again to access your dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoggingOut}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleLogoutConfirm();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                "Logout"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

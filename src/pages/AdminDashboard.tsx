@@ -54,10 +54,20 @@ import {
   Filter,
   Download,
   LogOut,
-  Loader2,
   UserPlus,
   Trash2,
+  Loader2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { vendorService } from "@/services/vendorService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -161,9 +171,21 @@ const AdminDashboard = () => {
   const isAdmin = user?.role === 'admin';
   const isManager = user?.role === 'manager';
 
-  const handleLogout = () => {
-    logout();
-    navigate("/admin/login");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      logout();
+      navigate("/admin/login");
+      setShowLogoutConfirm(false);
+      setIsLoggingOut(false);
+    }, 2500);
   };
 
   const fetchVendors = async () => {
@@ -439,13 +461,44 @@ const AdminDashboard = () => {
                 <p className="text-xs text-muted-foreground">Vendor Verification Portal</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="gap-2" onClick={handleLogout}>
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleLogoutClick}>
               <LogOut className="w-4 h-4" />
               Logout
             </Button>
           </div>
         </div>
       </div>
+
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to logout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will need to sign in again to access the admin portal.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoggingOut}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleLogoutConfirm();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                "Logout"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="w-full">
@@ -730,6 +783,7 @@ const AdminDashboard = () => {
               />
             </div>
             <Button
+              type="button"
               className="w-full"
               onClick={handleCreateManager}
               disabled={isCreatingManager}
@@ -1312,6 +1366,7 @@ const AdminDashboard = () => {
                                     />
                                     <span className="text-sm text-muted-foreground">%</span>
                                     <Button
+                                      type="button"
                                       size="sm"
                                       variant="ghost"
                                       className="h-8 w-8 p-0"
@@ -1358,6 +1413,7 @@ const AdminDashboard = () => {
                   </div>
                   <div className="flex gap-3 justify-end">
                     <Button
+                      type="button"
                       variant="outline"
                       onClick={() => handleReject(selectedVendor.id)}
                       disabled={processingVendorId === selectedVendor.id}
@@ -1371,6 +1427,7 @@ const AdminDashboard = () => {
                       Reject
                     </Button>
                     <Button
+                      type="button"
                       onClick={() => handleApprove(selectedVendor.id)}
                       disabled={processingVendorId === selectedVendor.id}
                       className="gap-2 bg-green-600 hover:bg-green-700"
