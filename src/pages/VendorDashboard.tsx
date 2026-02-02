@@ -126,13 +126,13 @@ const VendorDashboard = () => {
 
   const navItems = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "profile", label: "Profile", icon: User },
     { id: "services", label: "My Services", icon: Package },
     { id: "media", label: "Media", icon: ImageIcon },
     { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "bookings", label: "Bookings", icon: Package },
     { id: "earnings", label: "Earnings", icon: DollarSign },
     { id: "support", label: "Support", icon: MessageCircle },
-    { id: "profile", label: "Profile", icon: User },
   ];
 
   if (isLoading) {
@@ -297,7 +297,7 @@ const VendorDashboard = () => {
                     <CardDescription>Quick calendar view</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <CalendarView compact />
+                    <CalendarView compact services={services} />
                   </CardContent>
                 </Card>
               </div>
@@ -306,7 +306,7 @@ const VendorDashboard = () => {
 
           {activeTab === "services" && <ServicesList services={services} />}
           {activeTab === "media" && <MediaGallery vendorId={fullVendorData?.id} />}
-          {activeTab === "calendar" && <CalendarView />}
+          {activeTab === "calendar" && <CalendarView services={services} />}
           {activeTab === "bookings" && <BookingsTable />}
           {activeTab === "earnings" && <EarningsOverview />}
           {activeTab === "support" && <SupportChatTab />}

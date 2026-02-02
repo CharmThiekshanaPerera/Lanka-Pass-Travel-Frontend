@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
-import { 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Facebook, 
-  Instagram, 
-  Twitter, 
-  Youtube, 
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Facebook,
+  Instagram,
+  Twitter,
+  Youtube,
   Linkedin,
   Send,
   ArrowRight
@@ -38,7 +38,7 @@ const Footer = () => {
       {/* Newsletter Section */}
       <div className="pt-24 pb-12 relative z-10">
         <div className="container mx-auto px-4">
-          <div className="bg-gradient-to-r from-primary to-sunset rounded-3xl p-8 md:p-12 -mt-32 relative z-20">
+          <div className="bg-gradient-to-r from-primary via-ocean to-secondary rounded-[2.5rem] p-8 md:p-12 -mt-32 relative z-20 shadow-elevated border border-white/10">
             <div className="grid md:grid-cols-2 gap-8 items-center">
               <div>
                 <h3 className="font-display text-2xl md:text-3xl font-bold text-primary-foreground mb-2">
@@ -68,14 +68,14 @@ const Footer = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-sunset flex items-center justify-center">
-                <span className="text-primary-foreground font-display font-bold text-xl">L</span>
+            <Link to="/" className="flex items-center gap-2 mb-6 group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center group-hover:rotate-6 transition-transform shadow-lg">
+                <span className="text-white font-display font-bold text-xl">L</span>
               </div>
-              <span className="font-display font-bold text-xl">LankaPass</span>
+              <span className="font-display font-bold text-xl tracking-tight">LankaPass</span>
             </Link>
             <p className="text-primary-foreground/70 leading-relaxed mb-6">
-              Connecting travelers with authentic Sri Lankan experiences. 
+              Connecting travelers with authentic Sri Lankan experiences.
               Your gateway to unforgettable adventures.
             </p>
 

@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { vendorService } from "@/services/vendorService";
+import { toast } from "sonner";
+import { Loader2, FileText, ExternalLink } from "lucide-react";
 
 interface MediaItem {
     id: string;
@@ -23,74 +25,183 @@ interface MediaItem {
     name: string;
     size?: string;
     uploadedAt?: string;
+    isCover?: boolean;
+    isLogo?: boolean;
+    isPromo?: boolean;
 }
 
 interface MediaGalleryProps {
     vendorId?: string;
 }
 
+const IdentityUploadField = ({
+    label,
+    description,
+    helpText,
+    fileType,
+    vendorId,
+    currentUrl,
+    onUploadSuccess,
+    icon: Icon = ImageIcon,
+    buttonText = "Upload"
+}: {
+    label: string,
+    description?: string,
+    helpText?: string,
+    fileType: string,
+    vendorId: string,
+    currentUrl?: string,
+    onUploadSuccess: (url: string) => void,
+    icon?: any,
+    buttonText?: string
+}) => {
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const response = await vendorService.uploadFile(file, vendorId, fileType);
+            if (response.success) {
+                toast.success(`${label} updated successfully`);
+                onUploadSuccess(response.url);
+            }
+        } catch (error: any) {
+            toast.error(error.message || "Failed to upload file");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="space-y-1">
+                <Label className="text-sm font-semibold">{label}</Label>
+                {description && <p className="text-xs text-muted-foreground">{description}</p>}
+            </div>
+
+            <div className={`relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl transition-colors hover:bg-muted/50 ${currentUrl ? 'border-primary/50 bg-primary/5' : 'border-border'}`}>
+                {currentUrl ? (
+                    <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-4">
+                        {fileType === 'promo_video' ? (
+                            <video src={currentUrl} className="w-full h-full object-cover" />
+                        ) : (
+                            <img src={currentUrl} alt={label} className="w-full h-full object-cover" />
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <Eye className="w-8 h-8 text-white" />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                        <Icon className="w-6 h-6 text-primary" />
+                    </div>
+                )}
+
+                <div className="text-center space-y-2">
+                    <Button
+                        type="button"
+                        variant={currentUrl ? "outline" : "default"}
+                        size="sm"
+                        className="relative"
+                        disabled={isUploading}
+                    >
+                        {isUploading ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                            <Upload className="w-4 h-4 mr-2" />
+                        )}
+                        {currentUrl ? "Replace " : "Click to upload "}{buttonText}
+                        <input
+                            type="file"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                            onChange={handleFileChange}
+                            accept={fileType === 'promo_video' ? "video/*" : "image/*"}
+                            disabled={isUploading}
+                        />
+                    </Button>
+                    {helpText && <p className="text-[10px] text-muted-foreground">{helpText}</p>}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const MediaGallery = ({ vendorId }: MediaGalleryProps) => {
     const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
     const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
     const [activeTab, setActiveTab] = useState("all");
     const [isLoading, setIsLoading] = useState(true);
+    const [identityUrls, setIdentityUrls] = useState({
+        logo: "",
+        cover: ""
+    });
+
+    const fetchMedia = async () => {
+        try {
+            setIsLoading(true);
+            const response = await vendorService.getVendorProfile();
+            if (response.success && response.vendor) {
+                const v = response.vendor;
+                setIdentityUrls({
+                    logo: v.logo_url || "",
+                    cover: v.cover_image_url || ""
+                });
+                const items: MediaItem[] = [];
+
+                if (v.logo_url) {
+                    items.push({
+                        id: 'logo',
+                        url: v.logo_url,
+                        type: 'image',
+                        name: 'Business Logo',
+                        isLogo: true,
+                        uploadedAt: new Date(v.created_at).toLocaleDateString()
+                    });
+                }
+                if (v.cover_image_url) {
+                    items.push({
+                        id: 'cover',
+                        url: v.cover_image_url,
+                        type: 'image',
+                        name: 'Cover Image',
+                        isCover: true,
+                        uploadedAt: new Date(v.created_at).toLocaleDateString()
+                    });
+                }
+                if (v.gallery_images && Array.isArray(v.gallery_images)) {
+                    v.gallery_images.forEach((url: string, index: number) => {
+                        items.push({
+                            id: `gallery-${index}`,
+                            url: url,
+                            type: 'image',
+                            name: `Gallery Image ${index + 1}`,
+                            uploadedAt: new Date(v.created_at).toLocaleDateString()
+                        });
+                    });
+                }
+                if (v.promo_video_url) {
+                    items.push({
+                        id: 'promo',
+                        url: v.promo_video_url,
+                        type: 'video',
+                        name: 'Promo Video',
+                        isPromo: true,
+                        uploadedAt: new Date(v.created_at).toLocaleDateString()
+                    });
+                }
+                setMediaItems(items);
+            }
+        } catch (error) {
+            console.error("Failed to fetch media:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchMedia = async () => {
-            try {
-                setIsLoading(true);
-                const response = await vendorService.getVendorProfile();
-                if (response.success && response.vendor) {
-                    const v = response.vendor;
-                    const items: MediaItem[] = [];
-
-                    if (v.logo_url) {
-                        items.push({
-                            id: 'logo',
-                            url: v.logo_url,
-                            type: 'image',
-                            name: 'Business Logo',
-                            uploadedAt: new Date(v.created_at).toLocaleDateString()
-                        });
-                    }
-                    if (v.cover_image_url) {
-                        items.push({
-                            id: 'cover',
-                            url: v.cover_image_url,
-                            type: 'image',
-                            name: 'Cover Image',
-                            uploadedAt: new Date(v.created_at).toLocaleDateString()
-                        });
-                    }
-                    if (v.gallery_images && Array.isArray(v.gallery_images)) {
-                        v.gallery_images.forEach((url: string, index: number) => {
-                            items.push({
-                                id: `gallery-${index}`,
-                                url: url,
-                                type: 'image',
-                                name: `Gallery Image ${index + 1}`,
-                                uploadedAt: new Date(v.created_at).toLocaleDateString()
-                            });
-                        });
-                    }
-                    if (v.promo_video_url) {
-                        items.push({
-                            id: 'promo',
-                            url: v.promo_video_url,
-                            type: 'video',
-                            name: 'Promo Video',
-                            uploadedAt: new Date(v.created_at).toLocaleDateString()
-                        });
-                    }
-                    setMediaItems(items);
-                }
-            } catch (error) {
-                console.error("Failed to fetch media:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchMedia();
     }, [vendorId]);
 
@@ -124,205 +235,167 @@ const MediaGallery = ({ vendorId }: MediaGalleryProps) => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="max-w-5xl mx-auto space-y-12 pb-12">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h3 className="text-lg font-semibold">Media Gallery</h3>
+            <div>
+                <h3 className="text-2xl font-bold tracking-tight">Photos & Content</h3>
+                <p className="text-muted-foreground mt-1">
+                    Manage your visual presence and brand identity on the platform.
+                </p>
+            </div>
+
+            {/* Section 1: General Business Images */}
+            <section className="space-y-8">
+                <div className="space-y-1">
+                    <h4 className="text-lg font-semibold flex items-center gap-2">
+                        <ImageIcon className="w-5 h-5 text-primary" />
+                        General Business Images
+                    </h4>
                     <p className="text-sm text-muted-foreground">
-                        Manage your photos and videos
+                        These images will appear on your overall business/profile page.
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <Input
-                        type="file"
-                        id="media-upload"
-                        className="hidden"
-                        accept="image/*,video/*"
-                        multiple
-                        onChange={handleFileUpload}
+
+                <div className="grid gap-8">
+                    {/* Cover Image */}
+                    <IdentityUploadField
+                        label="Cover Image *"
+                        description="This will be the main image travelers see on your business page. Recommended: 1200x800px or larger."
+                        helpText="JPG, PNG, WEBP (max 10MB)"
+                        fileType="cover_image"
+                        vendorId={vendorId || ""}
+                        currentUrl={identityUrls.cover}
+                        onUploadSuccess={() => fetchMedia()}
+                        buttonText="cover image"
                     />
-                    <Label htmlFor="media-upload">
-                        <Button className="gap-2 cursor-pointer" asChild>
-                            <span>
-                                <Upload className="h-4 w-4" />
-                                Upload Media
-                            </span>
-                        </Button>
-                    </Label>
-                </div>
-            </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
-                <Card className="p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                            <ImageIcon className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold">
-                                {mediaItems.filter(i => i.type === "image").length}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Images</p>
-                        </div>
-                    </div>
-                </Card>
-                <Card className="p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-blue-500/10">
-                            <Video className="h-5 w-5 text-blue-500" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold">
-                                {mediaItems.filter(i => i.type === "video").length}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Videos</p>
-                        </div>
-                    </div>
-                </Card>
-                <Card className="p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-green-500/10">
-                            <Upload className="h-5 w-5 text-green-500" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold">{mediaItems.length}</p>
-                            <p className="text-xs text-muted-foreground">Total Files</p>
-                        </div>
-                    </div>
-                </Card>
-            </div>
-
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList>
-                    <TabsTrigger value="all">All Media</TabsTrigger>
-                    <TabsTrigger value="images">Images</TabsTrigger>
-                    <TabsTrigger value="videos">Videos</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value={activeTab} className="mt-6">
-                    {filteredMedia.length === 0 ? (
-                        <Card className="p-12">
-                            <div className="text-center">
-                                <Upload className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
-                                <h3 className="text-lg font-semibold mb-2">No Media Files</h3>
-                                <p className="text-muted-foreground mb-6">
-                                    Upload images and videos to showcase your services
+                    {/* Business Gallery Images */}
+                    <div className="space-y-4 pt-4 border-t">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                                <Label className="text-sm font-semibold">Business Gallery Images</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Add 3-6 additional photos to showcase your business, location, or general atmosphere.
                                 </p>
-                                <Label htmlFor="media-upload">
-                                    <Button className="gap-2 cursor-pointer" asChild>
-                                        <span>
-                                            <Plus className="h-4 w-4" />
-                                            Upload Your First File
-                                        </span>
-                                    </Button>
-                                </Label>
                             </div>
-                        </Card>
-                    ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {filteredMedia.map((item) => (
-                                <Card key={item.id} className="overflow-hidden group relative">
-                                    <div className="aspect-square relative bg-muted">
-                                        {item.type === "image" ? (
-                                            <img
-                                                src={item.url}
-                                                alt={item.name}
-                                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <Video className="h-12 w-12 text-muted-foreground" />
-                                            </div>
-                                        )}
-
-                                        {/* Overlay with actions */}
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                            <Button
-                                                size="icon"
-                                                variant="secondary"
-                                                className="h-8 w-8"
-                                                onClick={() => setSelectedImage(item)}
-                                            >
-                                                <Eye className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                size="icon"
-                                                variant="secondary"
-                                                className="h-8 w-8"
-                                                asChild
-                                            >
-                                                <a href={item.url} download={item.name}>
-                                                    <Download className="h-4 w-4" />
-                                                </a>
-                                            </Button>
-                                            <Button
-                                                size="icon"
-                                                variant="destructive"
-                                                className="h-8 w-8"
-                                                onClick={() => handleDelete(item.id)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-
-                                        {/* Badge */}
-                                        <Badge className="absolute top-2 left-2 text-xs">
-                                            {item.type === "image" ? <ImageIcon className="h-3 w-3 mr-1" /> : <Video className="h-3 w-3 mr-1" />}
-                                            {item.type}
-                                        </Badge>
-                                    </div>
-
-                                    <CardContent className="p-3">
-                                        <p className="text-sm font-medium truncate">{item.name}</p>
-                                        <div className="flex items-center justify-between mt-1">
-                                            <p className="text-xs text-muted-foreground">{item.size}</p>
-                                            <p className="text-xs text-muted-foreground">{item.uploadedAt}</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                            <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-[10px] font-medium">
+                                <ImageIcon className="w-3 h-3" />
+                                {mediaItems.filter(i => !i.isCover && !i.isLogo && !i.isPromo && i.type === 'image').length} of 6 images uploaded
+                            </div>
                         </div>
-                    )}
-                </TabsContent>
-            </Tabs>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            {mediaItems.filter(i => !i.isCover && !i.isLogo && !i.isPromo && i.type === 'image').map((item) => (
+                                <div key={item.id} className="group relative aspect-square rounded-xl overflow-hidden border bg-muted">
+                                    <img src={item.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:text-white" onClick={() => setSelectedImage(item)}>
+                                            <Eye className="w-4 h-4" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                            {mediaItems.filter(i => !i.isCover && !i.isLogo && !i.isPromo && i.type === 'image').length < 6 && (
+                                <div className="relative aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center hover:bg-muted/50 transition-colors cursor-pointer group">
+                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                        <Plus className="w-4 h-4 text-primary" />
+                                    </div>
+                                    <p className="text-[10px] font-medium text-muted-foreground">Add gallery photo</p>
+                                    <input
+                                        type="file"
+                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                        onChange={handleFileUpload}
+                                        accept="image/*"
+                                        multiple
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Section 2: Logo / Branding */}
+            <section className="space-y-6 pt-8 border-t">
+                <div className="space-y-1">
+                    <h4 className="text-lg font-semibold flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-primary" />
+                        Logo / Branding *
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                        Upload your business logo for brand consistency.
+                    </p>
+                </div>
+
+                <div className="max-w-md">
+                    <IdentityUploadField
+                        label=""
+                        description=""
+                        helpText="PNG, SVG, JPG (max 5MB)"
+                        fileType="logo"
+                        vendorId={vendorId || ""}
+                        currentUrl={identityUrls.logo}
+                        onUploadSuccess={() => fetchMedia()}
+                        buttonText="your logo"
+                    />
+                </div>
+            </section>
+
+            {/* Section 3: Short Promo Video */}
+            <section className="space-y-6 pt-8 border-t">
+                <div className="space-y-1">
+                    <h4 className="text-lg font-semibold flex items-center gap-2">
+                        <Video className="w-5 h-5 text-primary" />
+                        Short Promo Video (Optional)
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                        Add a short video (30-60 seconds) to give travelers a preview of your business or experience.
+                    </p>
+                </div>
+
+                <IdentityUploadField
+                    label=""
+                    description=""
+                    helpText="MP4, MOV (max 100MB)"
+                    fileType="promo_video"
+                    vendorId={vendorId || ""}
+                    currentUrl={mediaItems.find(i => i.isPromo)?.url}
+                    onUploadSuccess={() => fetchMedia()}
+                    icon={Video}
+                    buttonText="video"
+                />
+            </section>
 
             {/* Preview Dialog */}
             <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-                <DialogContent className="max-w-4xl">
-                    <DialogHeader>
-                        <DialogTitle>{selectedImage?.name}</DialogTitle>
-                        <DialogDescription>
-                            {selectedImage?.type === "image" ? "Image" : "Video"} • {selectedImage?.size} • Uploaded {selectedImage?.uploadedAt}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="mt-4">
+                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/95 border-none">
+                    <div className="relative aspect-video flex items-center justify-center">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="absolute top-4 right-4 z-50 text-white hover:bg-white/20"
+                            onClick={() => setSelectedImage(null)}
+                        >
+                            <X className="w-6 h-6" />
+                        </Button>
+
                         {selectedImage?.type === "image" ? (
                             <img
                                 src={selectedImage.url}
                                 alt={selectedImage.name}
-                                className="w-full h-auto rounded-lg"
+                                className="w-full h-full object-contain"
                             />
                         ) : (
                             <video
                                 src={selectedImage?.url}
                                 controls
-                                className="w-full h-auto rounded-lg"
+                                className="w-full h-full object-contain"
+                                autoPlay
                             />
                         )}
-                    </div>
-                    <div className="flex justify-end gap-2 mt-4">
-                        <Button variant="outline" onClick={() => setSelectedImage(null)}>
-                            Close
-                        </Button>
-                        <Button asChild>
-                            <a href={selectedImage?.url} download={selectedImage?.name}>
-                                <Download className="h-4 w-4 mr-2" />
-                                Download
-                            </a>
-                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

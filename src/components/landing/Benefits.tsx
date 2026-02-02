@@ -1,9 +1,9 @@
-import { 
-  TrendingUp, 
-  CreditCard, 
-  Headphones, 
-  BarChart3, 
-  Shield, 
+import {
+  TrendingUp,
+  CreditCard,
+  Headphones,
+  BarChart3,
+  Shield,
   Globe2,
   CheckCircle2
 } from "lucide-react";
@@ -49,21 +49,21 @@ const benefits = [
 
 const Benefits = () => {
   return (
-    <section id="benefits" className="py-20 md:py-28 glass-section relative overflow-hidden">
+    <section className="py-24 md:py-32 bg-gradient-to-br from-primary via-ocean to-secondary relative overflow-hidden">
       {/* Decorative Elements */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-primary/8 via-transparent to-secondary/8 rounded-full blur-3xl" />
 
       <div className="container mx-auto px-4 relative z-10">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="text-accent font-semibold text-sm uppercase tracking-wider">
+          <span className="text-secondary font-bold text-sm uppercase tracking-widest blur-[0.5px]">
             Why Partner With Us
           </span>
           <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
             Everything You Need to Grow
           </h2>
           <p className="text-muted-foreground text-lg">
-            LankaPass isn't just a listing platform — it's your partner in success. 
+            LankaPass isn't just a listing platform — it's your partner in success.
             We provide the tools, visibility, and support you need to thrive.
           </p>
         </div>
@@ -76,7 +76,7 @@ const Benefits = () => {
               className="group glass-card p-6 hover:shadow-elevated transition-all duration-500 hover:-translate-y-1 border-white/30 hover:border-primary/30"
             >
               {/* Icon */}
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-sunset-light flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all border border-white/40 shadow-soft">
                 <benefit.icon className="w-7 h-7 text-primary" />
               </div>
 
