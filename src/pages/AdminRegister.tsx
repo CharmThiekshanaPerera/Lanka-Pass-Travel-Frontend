@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,13 @@ const AdminRegister = () => {
 
     const navigate = useNavigate();
     const { toast } = useToast();
-    const { register } = useAuth();
+    const { register, user } = useAuth();
+
+    useEffect(() => {
+        if (user && !isLoading) {
+            navigate("/admin");
+        }
+    }, [user, isLoading, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,13 +47,16 @@ const AdminRegister = () => {
                     title: "Registration Successful",
                     description: "Admin account created successfully.",
                 });
-                navigate("/admin");
+                setTimeout(() => {
+                    navigate("/admin");
+                }, 2500);
             } else {
                 toast({
                     variant: "destructive",
                     title: "Registration Failed",
                     description: result.error || "Could not create admin account",
                 });
+                setIsLoading(false);
             }
         } catch (error: any) {
             toast({
@@ -55,7 +64,6 @@ const AdminRegister = () => {
                 title: "Registration Error",
                 description: "An unexpected error occurred.",
             });
-        } finally {
             setIsLoading(false);
         }
     };

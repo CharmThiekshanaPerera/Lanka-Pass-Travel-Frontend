@@ -5,12 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { 
-  Clock, 
-  Users, 
-  Plus, 
-  X, 
-  Check, 
+import {
+  Clock,
+  Users,
+  Plus,
+  X,
+  Check,
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight
@@ -49,30 +49,12 @@ interface DayBooking {
   isBlackout: boolean;
 }
 
-// Mock data for bookings
+// TODO: Fetch real booking data from API
 const generateMockData = (): DayBooking[] => {
-  const today = new Date();
-  const start = startOfMonth(today);
-  const end = endOfMonth(addDays(today, 60));
-  const days = eachDayOfInterval({ start, end });
-
-  return days.map((date, index) => ({
-    date,
-    isBlackout: index % 15 === 0,
-    slots: [
-      { id: `${index}-1`, time: "08:00 AM", capacity: 10, booked: Math.floor(Math.random() * 10), status: "available" as const },
-      { id: `${index}-2`, time: "10:00 AM", capacity: 8, booked: Math.floor(Math.random() * 8), status: "available" as const },
-      { id: `${index}-3`, time: "02:00 PM", capacity: 12, booked: Math.floor(Math.random() * 12), status: "available" as const },
-      { id: `${index}-4`, time: "04:00 PM", capacity: 6, booked: 6, status: "full" as const },
-    ],
-  }));
+  return [];
 };
 
-const mockBookingsForDate = [
-  { id: 1, guestName: "John Smith", time: "08:00 AM", guests: 4, service: "Sigiriya Day Tour" },
-  { id: 2, guestName: "Emma Wilson", time: "10:00 AM", guests: 2, service: "Sigiriya Day Tour" },
-  { id: 3, guestName: "Michael Chen", time: "02:00 PM", guests: 6, service: "Sigiriya Day Tour" },
-];
+const mockBookingsForDate: any[] = [];
 
 interface CalendarViewProps {
   compact?: boolean;
@@ -86,7 +68,7 @@ const CalendarView = ({ compact = false }: CalendarViewProps) => {
   const [newSlotCapacity, setNewSlotCapacity] = useState("10");
 
   const selectedDayData = bookingData.find(d => isSameDay(d.date, selectedDate));
-  
+
   const getDayStatus = (date: Date) => {
     const dayData = bookingData.find(d => isSameDay(d.date, date));
     if (!dayData) return null;
@@ -120,19 +102,19 @@ const CalendarView = ({ compact = false }: CalendarViewProps) => {
   };
 
   const modifiersStyles = {
-    blackout: { 
-      backgroundColor: 'hsl(var(--muted))', 
+    blackout: {
+      backgroundColor: 'hsl(var(--muted))',
       color: 'hsl(var(--muted-foreground))',
       textDecoration: 'line-through',
       opacity: 0.5
     },
-    full: { 
-      backgroundColor: 'hsl(var(--destructive) / 0.15)', 
+    full: {
+      backgroundColor: 'hsl(var(--destructive) / 0.15)',
       color: 'hsl(var(--destructive))',
       fontWeight: 600
     },
-    partial: { 
-      backgroundColor: 'hsl(45 93% 47% / 0.15)', 
+    partial: {
+      backgroundColor: 'hsl(45 93% 47% / 0.15)',
       color: 'hsl(45 93% 35%)',
       fontWeight: 600
     },
@@ -193,18 +175,18 @@ const CalendarView = ({ compact = false }: CalendarViewProps) => {
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="time">Start Time</Label>
-                  <Input 
-                    id="time" 
-                    type="time" 
+                  <Input
+                    id="time"
+                    type="time"
                     value={newSlotTime}
                     onChange={(e) => setNewSlotTime(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="capacity">Capacity</Label>
-                  <Input 
-                    id="capacity" 
-                    type="number" 
+                  <Input
+                    id="capacity"
+                    type="number"
                     min="1"
                     value={newSlotCapacity}
                     onChange={(e) => setNewSlotCapacity(e.target.value)}
@@ -301,7 +283,7 @@ const CalendarView = ({ compact = false }: CalendarViewProps) => {
                         <Clock className="h-4 w-4" />
                         <span className="font-medium">{slot.time}</span>
                       </div>
-                      <Badge 
+                      <Badge
                         variant={slot.booked >= slot.capacity ? "destructive" : "secondary"}
                         className="text-xs"
                       >
@@ -321,11 +303,11 @@ const CalendarView = ({ compact = false }: CalendarViewProps) => {
                     </div>
                     <div className="mt-2">
                       <div className="h-1.5 bg-background rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className={cn(
                             "h-full transition-all",
                             slot.booked >= slot.capacity ? "bg-destructive" :
-                            slot.booked > slot.capacity * 0.7 ? "bg-amber-500" : "bg-primary"
+                              slot.booked > slot.capacity * 0.7 ? "bg-amber-500" : "bg-primary"
                           )}
                           style={{ width: `${(slot.booked / slot.capacity) * 100}%` }}
                         />

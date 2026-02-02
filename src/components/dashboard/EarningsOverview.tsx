@@ -20,39 +20,21 @@ interface EarningsOverviewProps {
 const EarningsOverview = ({ compact = false }: EarningsOverviewProps) => {
   const [period, setPeriod] = useState("month");
 
+  // TODO: Fetch real earnings data from API
   const earningsSummary = {
-    totalEarnings: "LKR 845,320",
-    pendingPayout: "LKR 125,450",
-    nextPayoutDate: "Jan 25, 2026",
-    monthlyGrowth: "+12.5%",
-    avgBookingValue: "LKR 28,400",
+    totalEarnings: "LKR 0",
+    pendingPayout: "LKR 0",
+    nextPayoutDate: "-",
+    monthlyGrowth: "+0%",
+    avgBookingValue: "LKR 0",
     commission: "15%"
   };
 
-  const monthlyData = [
-    { month: "Aug 2025", earnings: 520000, bookings: 32, paidOut: true },
-    { month: "Sep 2025", earnings: 615000, bookings: 41, paidOut: true },
-    { month: "Oct 2025", earnings: 580000, bookings: 38, paidOut: true },
-    { month: "Nov 2025", earnings: 725000, bookings: 48, paidOut: true },
-    { month: "Dec 2025", earnings: 890000, bookings: 56, paidOut: true },
-    { month: "Jan 2026", earnings: 845320, bookings: 52, paidOut: false },
-  ];
+  const monthlyData: any[] = [];
 
-  const recentTransactions = [
-    { id: "TXN-001", date: "Jan 12, 2026", description: "Booking: Sigiriya Tour - John Smith", amount: "+LKR 60,000", type: "credit" },
-    { id: "TXN-002", date: "Jan 11, 2026", description: "Booking: Whale Watching - Emma Wilson", amount: "+LKR 17,000", type: "credit" },
-    { id: "TXN-003", date: "Jan 10, 2026", description: "Platform Commission (15%)", amount: "-LKR 4,500", type: "debit" },
-    { id: "TXN-004", date: "Jan 10, 2026", description: "Payout to Bank Account", amount: "-LKR 150,000", type: "payout" },
-    { id: "TXN-005", date: "Jan 9, 2026", description: "Booking: City Tour - Michael Chen", amount: "+LKR 30,000", type: "credit" },
-  ];
+  const recentTransactions: any[] = [];
 
-  const topServices = [
-    { name: "Sigiriya Rock Fortress Day Tour", earnings: 285000, percentage: 34 },
-    { name: "Whale Watching Mirissa", earnings: 195000, percentage: 23 },
-    { name: "Ella Adventure Package", earnings: 165000, percentage: 19 },
-    { name: "Traditional Cooking Class", earnings: 115320, percentage: 14 },
-    { name: "Colombo City Walking Tour", earnings: 85000, percentage: 10 },
-  ];
+  const topServices: any[] = [];
 
   if (compact) {
     return (
@@ -72,7 +54,7 @@ const EarningsOverview = ({ compact = false }: EarningsOverviewProps) => {
             <p className="text-xs text-muted-foreground mt-1">Next: {earningsSummary.nextPayoutDate}</p>
           </div>
         </div>
-        
+
         <div className="space-y-3">
           <p className="text-sm font-medium">Top Earning Services</p>
           {topServices.slice(0, 3).map((service, index) => (
@@ -251,10 +233,9 @@ const EarningsOverview = ({ compact = false }: EarningsOverviewProps) => {
                   <TableCell className="font-mono text-sm">{txn.id}</TableCell>
                   <TableCell className="text-muted-foreground">{txn.date}</TableCell>
                   <TableCell>{txn.description}</TableCell>
-                  <TableCell className={`text-right font-medium ${
-                    txn.type === "credit" ? "text-green-600" : 
-                    txn.type === "payout" ? "text-blue-600" : "text-destructive"
-                  }`}>
+                  <TableCell className={`text-right font-medium ${txn.type === "credit" ? "text-green-600" :
+                      txn.type === "payout" ? "text-blue-600" : "text-destructive"
+                    }`}>
                     {txn.amount}
                   </TableCell>
                 </TableRow>

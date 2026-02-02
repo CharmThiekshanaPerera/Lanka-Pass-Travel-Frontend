@@ -31,11 +31,10 @@ export interface AuthResponse {
 export const authService = {
   // Login
   login: async (data: LoginData): Promise<AuthResponse> => {
-    const formData = new FormData();
-    formData.append('username', data.email);
-    formData.append('password', data.password);
-
-    const response = await api.post('/api/auth/login', formData);
+    const response = await api.post('/api/auth/login', {
+      email: data.email,
+      password: data.password
+    });
     const { access_token, user } = response.data;
 
     if (access_token) {
