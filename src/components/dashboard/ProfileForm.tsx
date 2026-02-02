@@ -15,7 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Phone, Mail, MapPin, Landmark, Loader2, FileText, Upload, Eye, ExternalLink } from "lucide-react";
+import { Building2, Phone, Mail, MapPin, Landmark, Loader2, FileText, Upload, Eye, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { vendorService } from "@/services/vendorService";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -68,6 +69,7 @@ const profileSchema = z.object({
     regCertificateUrl: z.string().optional(),
     nicPassportUrl: z.string().optional(),
     tourismLicenseUrl: z.string().optional(),
+    marketingPermission: z.boolean().default(false),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -168,7 +170,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
     const [documents, setDocuments] = useState({
         regCertificate: initialData.reg_certificate_url,
         nicPassport: initialData.nic_passport_url,
-        tourismLicense: initialData.tourism_license_url
+        tourismLicense: initialData.tourism_license_url,
     });
 
     const form = useForm<ProfileFormValues>({
@@ -196,6 +198,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
             regCertificateUrl: initialData.reg_certificate_url || "",
             nicPassportUrl: initialData.nic_passport_url || "",
             tourismLicenseUrl: initialData.tourism_license_url || "",
+            marketingPermission: initialData.marketing_permission || false,
         },
     });
 
@@ -253,7 +256,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     <FormItem>
                                         <FormLabel>Business Name</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="Business Name" />
+                                            <Input {...field} placeholder="e.g., Adventure Paradise Tours" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -305,7 +308,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     <FormItem>
                                         <FormLabel>Legal Name (Optional)</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="Legal Entity Name" />
+                                            <Input {...field} placeholder="Full Legal Entity Name" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -321,7 +324,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     <FormItem>
                                         <FormLabel>Contact Person</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="Full Name" />
+                                            <Input {...field} placeholder="e.g., John Doe" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -348,7 +351,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     <FormItem>
                                         <FormLabel>Phone Number</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="+94 XXXXXXXX" />
+                                            <Input {...field} placeholder="+94 77 XXX XXXX" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -369,8 +372,8 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                                 type="button"
                                                 onClick={() => handleAreaToggle(area, field)}
                                                 className={`px-3 py-2 rounded-md text-sm transition-colors border ${(field.value || []).includes(area)
-                                                        ? "bg-primary text-primary-foreground border-primary"
-                                                        : "bg-background hover:bg-muted border-input"
+                                                    ? "bg-primary text-primary-foreground border-primary"
+                                                    : "bg-background hover:bg-muted border-input"
                                                     }`}
                                             >
                                                 {area}
@@ -418,7 +421,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 <FormItem>
                                     <FormLabel>Business Address</FormLabel>
                                     <FormControl>
-                                        <Textarea {...field} placeholder="Full physical address" />
+                                        <Textarea {...field} placeholder="Enter your registered business address" />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -432,7 +435,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     <FormItem>
                                         <FormLabel>Business Registration Number</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="Registration Number" />
+                                            <Input {...field} placeholder="e.g., BR-XXXXX" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -503,7 +506,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     <FormItem>
                                         <FormLabel>Bank Name</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="Name of your bank" />
+                                            <Input {...field} placeholder="e.g., Bank of Ceylon" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -516,7 +519,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     <FormItem>
                                         <FormLabel>Bank Branch</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="Branch name or code" />
+                                            <Input {...field} placeholder="e.g., Colombo Main" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -531,7 +534,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     <FormItem>
                                         <FormLabel>Account Holder Name</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="Name as it appears on bank records" />
+                                            <Input {...field} placeholder="Name exactly as on bank documents" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -544,7 +547,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     <FormItem>
                                         <FormLabel>Account Number</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder="Full account number" />
+                                            <Input {...field} placeholder="e.g., 000123456789" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -606,6 +609,32 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Marketing Permissions */}
+                <div className="bg-muted/30 rounded-xl p-6 border border-border">
+                    <FormField
+                        control={form.control}
+                        name="marketingPermission"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                    <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel className="text-base font-semibold">
+                                        Grant marketing permission
+                                    </FormLabel>
+                                    <FormDescription className="text-sm">
+                                        I grant LankaPass permission to use my uploaded images, logos, and videos for marketing purposes on the platform and promotional materials.
+                                    </FormDescription>
+                                </div>
+                            </FormItem>
+                        )}
+                    />
+                </div>
 
                 <div className="flex justify-end pt-4 sticky bottom-0 bg-background/80 backdrop-blur-sm p-4 border-t rounded-t-xl z-10 shadow-lg">
                     <Button type="submit" size="lg" disabled={isUpdating} className="w-full sm:w-auto min-w-[200px]">

@@ -101,11 +101,10 @@ const FeaturedVendors = () => {
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-4 h-4 ${
-                          i < Math.floor(vendor.rating)
-                            ? "fill-primary text-primary"
+                        className={`w-4 h-4 ${i < Math.floor(vendor.rating)
+                            ? "fill-secondary text-secondary"
                             : "text-muted"
-                        }`}
+                          }`}
                       />
                     ))}
                   </div>

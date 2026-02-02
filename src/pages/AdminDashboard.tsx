@@ -57,6 +57,10 @@ import {
   UserPlus,
   Trash2,
   Loader2,
+  MessageCircle,
+  Ban,
+  UserMinus,
+  Send,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -133,6 +137,10 @@ const AdminDashboard = () => {
   const [processingVendorId, setProcessingVendorId] = useState<string | null>(null);
   const [updatingServiceId, setUpdatingServiceId] = useState<string | null>(null);
   const [commissionValues, setCommissionValues] = useState<{ [key: string]: string }>({});
+
+  // Chat State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatVendor, setChatVendor] = useState<VendorSubmission | null>(null);
 
   const handleCommissionChange = (serviceId: string, value: string) => {
     setCommissionValues(prev => ({ ...prev, [serviceId]: value }));
@@ -418,6 +426,27 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleStatusChange = async (vendorId: string, status: string, reason?: string) => {
+    try {
+      setProcessingVendorId(vendorId);
+      await vendorService.updateVendorStatus(vendorId, status, reason);
+      setVendors((prev) =>
+        prev.map((v) =>
+          v.id === vendorId ? { ...v, status: status, rejectionReason: reason } : v
+        )
+      );
+      if (selectedVendor && selectedVendor.id === vendorId) {
+        setSelectedVendor({ ...selectedVendor, status: status, rejectionReason: reason });
+      }
+      toast.success(`Vendor status updated to ${status}`);
+      fetchVendors();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update vendor status");
+    } finally {
+      setProcessingVendorId(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
@@ -656,19 +685,33 @@ const AdminDashboard = () => {
                         </TableCell>
                         <TableCell>{getStatusBadge(vendor.status)}</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDetails(vendor)}
-                            disabled={processingVendorId === vendor.id}
-                          >
-                            {processingVendorId === vendor.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Eye className="w-4 h-4" />
-                            )}
-                            View
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                              onClick={() => {
+                                setChatVendor(vendor);
+                                setIsChatOpen(true);
+                              }}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewDetails(vendor)}
+                              disabled={processingVendorId === vendor.id}
+                              className="gap-2"
+                            >
+                              {processingVendorId === vendor.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                              View
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1398,47 +1441,99 @@ const AdminDashboard = () => {
               </Tabs>
 
               {/* Action Buttons */}
-              {selectedVendor.status === "pending" && isAdmin && (
+              {(isAdmin || isManager) && (
                 <div className="mt-6 pt-4 border-t space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Rejection Reason (required if rejecting)
-                    </label>
-                    <Textarea
-                      placeholder="Provide a reason for rejection..."
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      rows={2}
-                    />
-                  </div>
-                  <div className="flex gap-3 justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleReject(selectedVendor.id)}
-                      disabled={processingVendorId === selectedVendor.id}
-                      className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
-                    >
-                      {processingVendorId === selectedVendor.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <XCircle className="w-4 h-4" />
-                      )}
-                      Reject
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => handleApprove(selectedVendor.id)}
-                      disabled={processingVendorId === selectedVendor.id}
-                      className="gap-2 bg-green-600 hover:bg-green-700"
-                    >
-                      {processingVendorId === selectedVendor.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4" />
-                      )}
-                      Approve Vendor
-                    </Button>
+                  {(selectedVendor.status === "pending" || selectedVendor.status === "rejected") && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Status Reason (required if rejecting/terminating)
+                      </label>
+                      <Textarea
+                        placeholder="Provide a reason for this action..."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        rows={2}
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    {selectedVendor.status === "pending" && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleReject(selectedVendor.id)}
+                          disabled={processingVendorId === selectedVendor.id}
+                          className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          {processingVendorId === selectedVendor.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <XCircle className="w-4 h-4" />
+                          )}
+                          Reject
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleApprove(selectedVendor.id)}
+                          disabled={processingVendorId === selectedVendor.id}
+                          className="gap-2 bg-green-600 hover:bg-green-700"
+                        >
+                          {processingVendorId === selectedVendor.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4" />
+                          )}
+                          Approve Vendor
+                        </Button>
+                      </>
+                    )}
+
+                    {selectedVendor.status === "approved" && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            if (!rejectionReason.trim()) {
+                              toast.error("Please provide a reason for termination");
+                              return;
+                            }
+                            handleStatusChange(selectedVendor.id, "terminated", rejectionReason);
+                          }}
+                          disabled={processingVendorId === selectedVendor.id}
+                          className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                        >
+                          <Ban className="w-4 h-4" />
+                          Terminate
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={() => {
+                            if (confirm("Are you sure you want to eject this vendor? This will remove their access immediately.")) {
+                              handleStatusChange(selectedVendor.id, "ejected", "Administrative ejection");
+                            }
+                          }}
+                          disabled={processingVendorId === selectedVendor.id}
+                          className="gap-2"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                          Eject Vendor
+                        </Button>
+                      </>
+                    )}
+
+                    {(selectedVendor.status === "terminated" || selectedVendor.status === "rejected" || selectedVendor.status === "ejected") && (
+                      <Button
+                        type="button"
+                        onClick={() => handleApprove(selectedVendor.id)}
+                        disabled={processingVendorId === selectedVendor.id}
+                        className="gap-2 bg-green-600 hover:bg-green-700"
+                      >
+                        Re-Approve Vendor
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1456,6 +1551,56 @@ const AdminDashboard = () => {
               )}
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Vendor Chat Modal */}
+      <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
+        <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
+          <DialogHeader className="p-6 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+                    {chatVendor?.businessName?.split(" ").map(n => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <DialogTitle className="text-lg">Chat with {chatVendor?.businessName}</DialogTitle>
+                  <DialogDescription>
+                    Direct support channel for this vendor
+                  </DialogDescription>
+                </div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-hidden flex flex-col bg-muted/5">
+            <ScrollArea className="flex-1 p-6">
+              <div className="space-y-4">
+                {/* Mock messages for now */}
+                <div className="flex justify-start">
+                  <div className="bg-muted p-3 rounded-lg max-w-[80%] text-sm">
+                    Hello, we have a question about our latest service submission.
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <div className="bg-primary text-primary-foreground p-3 rounded-lg max-w-[80%] text-sm">
+                    Hello! I'm reviewing it now. Could you please clarify the cancellation policy?
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+
+            <div className="p-4 border-t bg-background">
+              <div className="flex gap-2">
+                <Input placeholder="Type a message to the vendor..." className="flex-1" />
+                <Button size="icon">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div >

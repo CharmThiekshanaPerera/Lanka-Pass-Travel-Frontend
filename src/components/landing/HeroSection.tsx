@@ -3,11 +3,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Users, Globe, Shield, Wallet, ChevronLeft, ChevronRight, Play } from "lucide-react";
 
-
 const slides = [
   {
     image: '/assets/hero-slide-1.jpg',
-    title: "Partner with Sri Lanka's Premier Travel Platform",
+    title: "Partner with Lanka Travel Pass",
     subtitle: "Join LankaPass and connect with thousands of travelers seeking authentic experiences.",
   },
   {
@@ -24,182 +23,152 @@ const slides = [
 
 const HeroSection = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [prevSlide, setPrevSlide] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      handleNextSlide();
-    }, 6000);
+      setPrevSlide(currentSlide);
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 20000);
     return () => clearInterval(interval);
   }, [currentSlide]);
 
-  const handleNextSlide = () => {
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-      setIsTransitioning(false);
-    }, 500);
-  };
-
-  const handlePrevSlide = () => {
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-      setIsTransitioning(false);
-    }, 500);
-  };
-
   const goToSlide = (index: number) => {
     if (index !== currentSlide) {
-      setIsTransitioning(true);
-      setTimeout(() => {
-        setCurrentSlide(index);
-        setIsTransitioning(false);
-      }, 500);
+      setPrevSlide(currentSlide);
+      setCurrentSlide(index);
     }
   };
 
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
-      {/* Background Slideshow */}
-      {slides.map((slide, index) => (
-        <div
-          key={index}
-          className={`absolute inset-0 z-0 transition-all duration-1000 ease-in-out ${
-            currentSlide === index
-              ? "opacity-100 scale-100"
-              : "opacity-0 scale-105"
-          }`}
-        >
-          <img
-            src={slide.image}
-            alt={slide.title}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-foreground/85 via-foreground/60 to-foreground/30" />
-        </div>
-      ))}
+    <section className="relative min-h-[90vh] md:min-h-screen flex items-center justify-center overflow-hidden bg-background pt-20">
+      {/* Background Slideshow Layer - Stacking logic for perfect smoothness */}
+      {slides.map((slide, index) => {
+        const isCurrent = currentSlide === index;
+        const isPrevious = prevSlide === index;
 
-      {/* Animated Particles */}
-      <div className="absolute inset-0 z-5 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
+        return (
           <div
-            key={i}
-            className="absolute w-2 h-2 bg-primary/20 rounded-full animate-float"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${4 + Math.random() * 4}s`,
-            }}
-          />
-        ))}
+            key={`bg-${index}`}
+            style={{ willChange: "opacity" }}
+            className={`absolute inset-0 transition-opacity duration-[7000ms] ease-in-out ${isCurrent ? "opacity-100 z-20 visible" :
+              isPrevious ? "opacity-100 z-10 visible" :
+                "opacity-0 z-0 invisible"
+              }`}
+          >
+            <img
+              src={slide.image}
+              alt=""
+              className="w-full h-full object-cover brightness-[0.6]"
+            />
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-foreground/20 to-background" />
+          </div>
+        );
+      })}
+
+      {/* Simplified Decorative Elements */}
+      <div className="absolute inset-0 z-25 pointer-events-none">
+        <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-ocean/5 blur-[100px] rounded-full" />
+        <div className="absolute bottom-[-5%] right-[-5%] w-[40%] h-[40%] bg-sunset/5 blur-[100px] rounded-full" />
       </div>
 
-      {/* Slide Navigation Arrows */}
-      <button
-        onClick={handlePrevSlide}
-        className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-card/20 backdrop-blur-sm border border-white/10 flex items-center justify-center text-primary-foreground hover:bg-card/40 transition-all group"
-      >
-        <ChevronLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
-      </button>
-      <button
-        onClick={handleNextSlide}
-        className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-card/20 backdrop-blur-sm border border-white/10 flex items-center justify-center text-primary-foreground hover:bg-card/40 transition-all group"
-      >
-        <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-      </button>
+      <div className="container mx-auto px-4 relative z-30">
+        <div className="max-w-4xl mx-auto text-center relative h-[420px] md:h-[500px]">
+          {/* Hero Content Layer - Stacked cross-fade with hardware acceleration */}
+          {slides.map((slide, index) => {
+            const isCurrent = currentSlide === index;
+            const isPrevious = prevSlide === index;
 
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-3xl">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-card/20 backdrop-blur-sm rounded-full px-4 py-2 mb-6 animate-fade-in border border-white/10">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            <span className="text-primary-foreground/90 text-sm font-medium">
-              Now accepting vendor applications
-            </span>
+            return (
+              <div
+                key={`content-${index}`}
+                style={{ willChange: "opacity, transform" }}
+                className={`absolute inset-0 flex flex-col items-center transition-all duration-[7000ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${isCurrent
+                  ? "opacity-100 translate-y-0 scale-100 z-20 visible"
+                  : isPrevious
+                    ? "opacity-0 -translate-y-4 scale-105 z-10 visible pointer-events-none"
+                    : "opacity-0 translate-y-4 scale-95 z-0 invisible pointer-events-none"
+                  }`}
+              >
+                {/* Enhanced Visibility Badge */}
+                <div className="inline-flex items-center gap-2 mb-8">
+                  <div className="bg-white/10 backdrop-blur-md px-6 py-2 rounded-full border border-white/30 flex items-center gap-3 shadow-lg">
+                    <span className="flex h-2.5 w-2.5 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-secondary"></span>
+                    </span>
+                    <span className="text-white text-sm font-bold tracking-wider uppercase">
+                      Accepting Vendor Applications
+                    </span>
+                  </div>
+                </div>
+
+                {/* Unified Primary Headline */}
+                <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-8 leading-[1.1] drop-shadow-2xl">
+                  {slide.title}
+                </h1>
+
+                {/* High-Visibility Subheadline */}
+                <p className="text-xl md:text-2xl text-white font-medium mb-12 leading-relaxed max-w-2xl mx-auto drop-shadow-lg">
+                  {slide.subtitle}
+                </p>
+
+                {/* CTA Block */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                  <Link to="/onboarding" className="w-full sm:w-auto">
+                    <button
+                      className="w-full group relative px-10 py-5 rounded-2xl bg-primary text-white font-bold text-lg transition-all hover:shadow-glow hover:scale-[1.02] active:scale-95 shadow-xl"
+                    >
+                      Start Your Global Journey
+                    </button>
+                  </Link>
+
+                  <a href="#how-it-works" className="w-full sm:w-auto">
+                    <button className="w-full group px-8 py-5 rounded-2xl bg-white/20 backdrop-blur-lg border border-white/40 text-white font-bold text-lg hover:bg-white/30 transition-all flex items-center justify-center gap-3 shadow-xl">
+                      <Play className="w-5 h-5 fill-white" />
+                      See the Platform
+                    </button>
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* High-Contrast Trust Indicators */}
+        <div className="mt-12 flex flex-wrap justify-center items-center gap-4 md:gap-8 relative z-40">
+          <div className="flex items-center gap-3 text-foreground font-bold bg-white/70 backdrop-blur-md px-6 py-4 rounded-2xl border border-primary/20 shadow-xl hover:bg-white/90 hover:border-primary/40 transition-all cursor-default group">
+            <Globe className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
+            <span className="tracking-wide">Global Reach</span>
           </div>
-
-          {/* Main Headline - Animated */}
-          <h1
-            className={`font-display text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground mb-6 leading-tight transition-all duration-500 ${
-              isTransitioning ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"
-            }`}
-          >
-            {slides[currentSlide].title}
-          </h1>
-
-          {/* Subheadline - Animated */}
-          <p
-            className={`text-xl md:text-2xl text-primary-foreground/80 mb-8 leading-relaxed transition-all duration-500 delay-100 ${
-              isTransitioning ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"
-            }`}
-          >
-            {slides[currentSlide].subtitle}
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-12 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <Link to="/onboarding">
-              <Button variant="hero" size="xl" className="w-full sm:w-auto group">
-                Start Onboarding
-                <ArrowRight className="group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <a href="#how-it-works">
-              <Button variant="heroOutline" size="xl" className="w-full sm:w-auto group">
-                <Play className="w-4 h-4 mr-2" />
-                Watch How It Works
-              </Button>
-            </a>
+          <div className="flex items-center gap-3 text-foreground font-bold bg-white/70 backdrop-blur-md px-6 py-4 rounded-2xl border border-primary/20 shadow-xl hover:bg-white/90 hover:border-primary/40 transition-all cursor-default group">
+            <Shield className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
+            <span className="tracking-wide">Secured Payouts</span>
           </div>
-
-          {/* Feature Pills */}
-          <div className="flex flex-wrap gap-3 animate-slide-up" style={{ animationDelay: "0.3s" }}>
-            <div className="flex items-center gap-2 bg-card/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10 hover:bg-card/30 transition-colors cursor-default">
-              <Users className="w-4 h-4 text-primary" />
-              <span className="text-primary-foreground/90 text-sm">Reach More Travelers</span>
-            </div>
-            <div className="flex items-center gap-2 bg-card/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10 hover:bg-card/30 transition-colors cursor-default">
-              <Globe className="w-4 h-4 text-secondary" />
-              <span className="text-primary-foreground/90 text-sm">Global Visibility</span>
-            </div>
-            <div className="flex items-center gap-2 bg-card/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10 hover:bg-card/30 transition-colors cursor-default">
-              <Shield className="w-4 h-4 text-accent" />
-              <span className="text-primary-foreground/90 text-sm">Verified Platform</span>
-            </div>
-            <div className="flex items-center gap-2 bg-card/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10 hover:bg-card/30 transition-colors cursor-default">
-              <Wallet className="w-4 h-4 text-primary" />
-              <span className="text-primary-foreground/90 text-sm">Secure Payouts</span>
-            </div>
+          <div className="flex items-center gap-3 text-foreground font-bold bg-white/70 backdrop-blur-md px-6 py-4 rounded-2xl border border-primary/20 shadow-xl hover:bg-white/90 hover:border-primary/40 transition-all cursor-default group">
+            <Users className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
+            <span className="tracking-wide">Verified Network</span>
           </div>
         </div>
       </div>
 
-      {/* Slide Indicators */}
-      <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
+      {/* Simplified Slide Indicators */}
+      <div className="absolute right-8 top-1/2 -translate-y-1/2 z-50 hidden lg:flex flex-col gap-5">
         {slides.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`transition-all duration-300 ${
-              currentSlide === index
-                ? "w-10 h-3 bg-primary rounded-full"
-                : "w-3 h-3 bg-white/40 rounded-full hover:bg-white/60"
-            }`}
+            className={`transition-all duration-500 rounded-full ${currentSlide === index
+              ? "h-16 w-1.5 bg-secondary"
+              : "h-3 w-1.5 bg-white/40 hover:bg-white/60"
+              }`}
           />
         ))}
       </div>
 
-      {/* Decorative Wave */}
-      <div className="absolute bottom-0 left-0 right-0 z-10">
-        <svg viewBox="0 0 1440 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-          <path
-            d="M0 50L48 45.8C96 41.7 192 33.3 288 29.2C384 25 480 25 576 33.3C672 41.7 768 58.3 864 62.5C960 66.7 1056 58.3 1152 50C1248 41.7 1344 33.3 1392 29.2L1440 25V100H1392C1344 100 1248 100 1152 100C1056 100 960 100 864 100C768 100 672 100 576 100C480 100 384 100 288 100C192 100 96 100 48 100H0V50Z"
-            className="fill-background"
-          />
-        </svg>
-      </div>
+      {/* Clean Bottom Transition */}
+      <div className="absolute bottom-0 left-0 right-0 z-30 h-24 bg-gradient-to-t from-background to-transparent" />
     </section>
   );
 };
