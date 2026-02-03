@@ -218,30 +218,32 @@ const EarningsOverview = ({ compact = false }: EarningsOverviewProps) => {
           <CardDescription>Your latest financial activities</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Transaction ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentTransactions.map((txn) => (
-                <TableRow key={txn.id}>
-                  <TableCell className="font-mono text-sm">{txn.id}</TableCell>
-                  <TableCell className="text-muted-foreground">{txn.date}</TableCell>
-                  <TableCell>{txn.description}</TableCell>
-                  <TableCell className={`text-right font-medium ${txn.type === "credit" ? "text-green-600" :
-                      txn.type === "payout" ? "text-blue-600" : "text-destructive"
-                    }`}>
-                    {txn.amount}
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Transaction ID</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {recentTransactions.map((txn) => (
+                  <TableRow key={txn.id}>
+                    <TableCell className="font-mono text-sm">{txn.id}</TableCell>
+                    <TableCell className="text-muted-foreground">{txn.date}</TableCell>
+                    <TableCell>{txn.description}</TableCell>
+                    <TableCell className={`text-right font-medium ${txn.type === "credit" ? "text-green-600" :
+                      txn.type === "payout" ? "text-blue-600" : "text-destructive"
+                      }`}>
+                      {txn.amount}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

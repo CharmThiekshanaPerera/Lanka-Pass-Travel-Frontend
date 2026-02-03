@@ -105,77 +105,79 @@ const BookingsTable = ({ limit, compact = false }: BookingsTableProps) => {
       </div>
 
       {/* Table */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Booking ID</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead>Date & Time</TableHead>
-              <TableHead>Guests</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {displayBookings.map((booking) => (
-              <TableRow key={booking.id}>
-                <TableCell className="font-medium">{booking.id}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                        {booking.customer.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-sm">{booking.customer}</p>
-                      <p className="text-xs text-muted-foreground">{booking.email}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <p className="text-sm line-clamp-1 max-w-[200px]">{booking.service}</p>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="text-sm">{booking.date}</span>
-                    <span className="text-xs text-muted-foreground">{booking.time}</span>
-                  </div>
-                </TableCell>
-                <TableCell>{booking.guests}</TableCell>
-                <TableCell className="font-medium">{booking.amount}</TableCell>
-                <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="gap-2">
-                        <Eye className="h-4 w-4" /> View Details
-                      </DropdownMenuItem>
-                      {booking.status === "pending" && (
-                        <>
-                          <DropdownMenuItem className="gap-2 text-green-600">
-                            <Check className="h-4 w-4" /> Confirm
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-destructive">
-                            <X className="h-4 w-4" /> Decline
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Booking ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Guests</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {displayBookings.map((booking) => (
+                <TableRow key={booking.id}>
+                  <TableCell className="font-medium">{booking.id}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          {booking.customer.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">{booking.customer}</p>
+                        <p className="text-xs text-muted-foreground">{booking.email}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <p className="text-sm line-clamp-1 max-w-[200px]">{booking.service}</p>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="text-sm">{booking.date}</span>
+                      <span className="text-xs text-muted-foreground">{booking.time}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{booking.guests}</TableCell>
+                  <TableCell className="font-medium">{booking.amount}</TableCell>
+                  <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem className="gap-2">
+                          <Eye className="h-4 w-4" /> View Details
+                        </DropdownMenuItem>
+                        {booking.status === "pending" && (
+                          <>
+                            <DropdownMenuItem className="gap-2 text-green-600">
+                              <Check className="h-4 w-4" /> Confirm
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 text-destructive">
+                              <X className="h-4 w-4" /> Decline
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       {/* Summary Stats */}
