@@ -1,16 +1,61 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle, Mail, Clock, FileText, Home } from 'lucide-react';
+import { CheckCircle, Mail, Clock, FileText, Home, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useRef, useState } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { toast } from 'sonner';
 
 const VendorRegistrationSuccess = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { vendorId, businessName, email } = location.state || {};
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const handleDownload = async () => {
+        if (!contentRef.current) return;
+
+        setIsDownloading(true);
+        try {
+            // Capture the content as canvas
+            const canvas = await html2canvas(contentRef.current, {
+                scale: 2,
+                backgroundColor: '#fffbeb', // amber-50 background
+                logging: false,
+                useCORS: true
+            });
+
+            // Convert to PDF
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const imgWidth = 210; // A4 width in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+            // Download with filename
+            const filename = `LankaPass_Registration_${vendorId || 'Confirmation'}.pdf`;
+            pdf.save(filename);
+
+            toast.success('Registration confirmation downloaded successfully!');
+        } catch (error) {
+            console.error('Download failed:', error);
+            toast.error('Failed to download confirmation. Please try again.');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center p-4">
             <div className="max-w-2xl w-full">
-                <div className="bg-white rounded-2xl shadow-xl p-8 text-center border border-amber-100/50">
+                <div ref={contentRef} className="bg-white rounded-2xl shadow-xl p-8 text-center border border-amber-100/50">
                     {/* Success Icon */}
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                         <CheckCircle className="w-10 h-10 text-green-600" />
@@ -104,6 +149,16 @@ const VendorRegistrationSuccess = () => {
                         >
                             <Home className="w-4 h-4" />
                             Back to Home
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            onClick={handleDownload}
+                            disabled={isDownloading}
+                            className="flex items-center gap-2 h-12 px-8 border-green-200 text-green-700 hover:bg-green-50"
+                        >
+                            <Download className="w-4 h-4" />
+                            {isDownloading ? 'Downloading...' : 'Download Confirmation'}
                         </Button>
 
                         <Button

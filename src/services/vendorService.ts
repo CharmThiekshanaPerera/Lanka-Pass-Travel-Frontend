@@ -4,12 +4,14 @@ import { api } from '../lib/api';
 export interface ServiceData {
   serviceName: string;
   serviceCategory: string;
+  serviceCategoryOther?: string;
   shortDescription: string;
   whatsIncluded?: string;
   whatsNotIncluded?: string;
   durationValue: number;
   durationUnit: string;
   languagesOffered: string[];
+  languagesOther?: string;
   groupSizeMin: number;
   groupSizeMax: number;
   dailyCapacity?: number;
@@ -17,10 +19,18 @@ export interface ServiceData {
   locationsCovered: string[];
   retailPrice: number;
   currency: string;
+  advanceBooking?: string;
+  advanceBookingOther?: string;
   notSuitableFor?: string;
   importantInfo?: string;
   cancellationPolicy?: string;
   accessibilityInfo?: string;
+  operatingHoursFrom?: string;
+  operatingHoursFromPeriod?: string;
+  operatingHoursTo?: string;
+  operatingHoursToPeriod?: string;
+  blackoutDates?: any[];
+  blackoutHolidays?: boolean;
   serviceImages?: File[];
 }
 
@@ -392,7 +402,8 @@ class VendorService {
     file: File,
     vendorId: string,
     fileType: string,
-    serviceIndex?: number
+    serviceIndex?: number,
+    serviceId?: string
   ): Promise<FileUploadResponse> {
     try {
       const formData = new FormData();
@@ -402,6 +413,10 @@ class VendorService {
 
       if (serviceIndex !== undefined) {
         formData.append('service_index', serviceIndex.toString());
+      }
+
+      if (serviceId) {
+        formData.append('service_id', serviceId);
       }
 
       const response = await api.post<FileUploadResponse>(
@@ -492,6 +507,35 @@ class VendorService {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to update vendor profile');
+    }
+  }
+
+  // --- Service Management ---
+
+  async createService(data: any): Promise<any> {
+    try {
+      const response = await api.post('/api/vendor/services', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to create service');
+    }
+  }
+
+  async updateService(serviceId: string, data: any): Promise<any> {
+    try {
+      const response = await api.put(`/api/vendor/services/${serviceId}`, data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to update service');
+    }
+  }
+
+  async deleteService(serviceId: string): Promise<any> {
+    try {
+      const response = await api.delete(`/api/vendor/services/${serviceId}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to delete service');
     }
   }
 

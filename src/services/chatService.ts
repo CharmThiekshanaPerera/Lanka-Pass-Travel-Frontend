@@ -24,6 +24,7 @@ export interface ChatMessage {
 export interface UpdateRequest {
     id: string;
     vendor_id: string;
+    service_id?: string;  // For service update requests
     requested_by: string;
     requested_by_name: string;
     request_type: string;
@@ -201,6 +202,27 @@ class ChatService {
         }
     }
 
+    /**
+     * Get service update requests for a specific service
+     */
+    async getServiceUpdateRequests(
+        serviceId?: string,
+        status?: string,
+        limit: number = 20,
+        skip: number = 0
+    ): Promise<UpdateRequestsResponse> {
+        try {
+            const params: any = { limit, skip };
+            if (status) params.status = status;
+            if (serviceId) params.service_id = serviceId;
+
+            const response = await api.get('/api/vendor/update-requests', { params });
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || 'Failed to fetch service update requests');
+        }
+    }
+
     // ==================== HELPERS ====================
 
     /**
@@ -208,6 +230,7 @@ class ChatService {
      */
     formatFieldName(field: string): string {
         const fieldMap: Record<string, string> = {
+            // Profile fields
             businessName: 'Business Name',
             legalName: 'Legal Name',
             contactPerson: 'Contact Person',
@@ -225,7 +248,37 @@ class ChatService {
             accountNumber: 'Account Number',
             bankBranch: 'Bank Branch',
             payoutCycle: 'Payout Cycle',
-            payoutDate: 'Payout Date'
+            payoutDate: 'Payout Date',
+            // Service fields
+            serviceName: 'Service Name',
+            serviceCategory: 'Category',
+            serviceCategoryOther: 'Other Category',
+            shortDescription: 'Description',
+            whatsIncluded: "What's Included",
+            whatsNotIncluded: "What's Not Included",
+            retailPrice: 'Price',
+            currency: 'Currency',
+            durationValue: 'Duration',
+            durationUnit: 'Duration Unit',
+            languagesOffered: 'Languages',
+            languagesOther: 'Other Languages',
+            groupSizeMin: 'Min Group Size',
+            groupSizeMax: 'Max Group Size',
+            dailyCapacity: 'Daily Capacity',
+            operatingDays: 'Operating Days',
+            locationsCovered: 'Locations',
+            operatingHoursFrom: 'Opening Time',
+            operatingHoursTo: 'Closing Time',
+            blackoutDates: 'Blackout Dates',
+            blackoutHolidays: 'Blackout Holidays',
+            blackoutWeekends: 'Blackout Weekends',
+            advanceBooking: 'Advance Booking',
+            advanceBookingOther: 'Other Advance Booking',
+            notSuitableFor: 'Not Suitable For',
+            importantInfo: 'Important Info',
+            cancellationPolicy: 'Cancellation Policy',
+            accessibilityInfo: 'Accessibility Info',
+            serviceTimeSlots: 'Time Slots'
         };
         return fieldMap[field] || field;
     }
@@ -235,6 +288,7 @@ class ChatService {
      */
     getDbKey(field: string): string {
         const map: Record<string, string> = {
+            // Profile fields
             businessName: 'business_name',
             legalName: 'legal_name',
             contactPerson: 'contact_person',
@@ -258,7 +312,40 @@ class ChatService {
             tourismLicenseUrl: 'tourism_license_url',
             logoUrl: 'logo_url',
             coverImageUrl: 'cover_image_url',
-            galleryUrls: 'gallery_urls'
+            galleryUrls: 'gallery_urls',
+            // Service fields
+            serviceName: 'service_name',
+            serviceCategory: 'service_category',
+            serviceCategoryOther: 'service_category_other',
+            shortDescription: 'short_description',
+            whatsIncluded: 'whats_included',
+            whatsNotIncluded: 'whats_not_included',
+            retailPrice: 'retail_price',
+            currency: 'currency',
+            durationValue: 'duration_value',
+            durationUnit: 'duration_unit',
+            languagesOffered: 'languages_offered',
+            languagesOther: 'languages_other',
+            groupSizeMin: 'group_size_min',
+            groupSizeMax: 'group_size_max',
+            dailyCapacity: 'daily_capacity',
+            operatingDays: 'operating_days',
+            locationsCovered: 'locations_covered',
+            operatingHoursFrom: 'operating_hours_from',
+            operatingHoursFromPeriod: 'operating_hours_from_period',
+            operatingHoursTo: 'operating_hours_to',
+            operatingHoursToPeriod: 'operating_hours_to_period',
+            blackoutDates: 'blackout_dates',
+            blackoutHolidays: 'blackout_holidays',
+            blackoutWeekends: 'blackout_weekends',
+            advanceBooking: 'advance_booking',
+            advanceBookingOther: 'advance_booking_other',
+            notSuitableFor: 'not_suitable_for',
+            importantInfo: 'important_info',
+            cancellationPolicy: 'cancellation_policy',
+            accessibilityInfo: 'accessibility_info',
+            serviceTimeSlots: 'service_time_slots',
+            imageUrls: 'image_urls'
         };
         return map[field] || field;
     }
