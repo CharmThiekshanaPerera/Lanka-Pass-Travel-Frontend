@@ -214,7 +214,17 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
             };
             const response = await vendorService.updateVendorProfile(updatedValues);
             if (response.success) {
-                toast.success("Profile updated successfully");
+                // Check if changes are pending approval
+                if (response.pending_approval) {
+                    toast.info(response.message || "Your profile update request has been submitted for approval. You will be notified once it is reviewed.", {
+                        duration: 6000,
+                        description: response.changed_fields?.length
+                            ? `Fields pending: ${response.changed_fields.join(", ")}`
+                            : undefined
+                    });
+                } else {
+                    toast.success(response.message || "Profile updated successfully");
+                }
                 if (onUpdate) onUpdate();
             }
         } catch (error: any) {

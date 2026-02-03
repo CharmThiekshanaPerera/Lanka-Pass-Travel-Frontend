@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   Table,
   TableBody,
@@ -60,7 +62,10 @@ import {
   MessageCircle,
   Ban,
   UserMinus,
+
   Send,
+  Paperclip,
+  Maximize2,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -76,6 +81,7 @@ import { toast } from "sonner";
 import { vendorService } from "@/services/vendorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import { AdminChatModal } from "@/components/admin/AdminChatModal";
 
 // Define the shape of our frontend vendor object (mapping from backend)
 interface VendorSubmission {
@@ -137,6 +143,12 @@ const AdminDashboard = () => {
   const [processingVendorId, setProcessingVendorId] = useState<string | null>(null);
   const [updatingServiceId, setUpdatingServiceId] = useState<string | null>(null);
   const [commissionValues, setCommissionValues] = useState<{ [key: string]: string }>({});
+
+  // Action Dialog State
+  const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ type: 'reject' | 'terminate' | 'eject'; vendorId: string } | null>(null);
+  const [actionReason, setActionReason] = useState("");
+
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -1443,98 +1455,79 @@ const AdminDashboard = () => {
               {/* Action Buttons */}
               {(isAdmin || isManager) && (
                 <div className="mt-6 pt-4 border-t space-y-4">
-                  {(selectedVendor.status === "pending" || selectedVendor.status === "rejected") && (
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        Status Reason (required if rejecting/terminating)
-                      </label>
-                      <Textarea
-                        placeholder="Provide a reason for this action..."
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        rows={2}
-                      />
-                    </div>
+
+
+                  {selectedVendor.status === "approved" && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setActionReason("");
+                          setPendingAction({ type: 'terminate', vendorId: selectedVendor.id });
+                          setReasonDialogOpen(true);
+                        }}
+                        disabled={processingVendorId === selectedVendor.id}
+                        className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                      >
+                        <Ban className="w-4 h-4" />
+                        Terminate
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => {
+                          setActionReason("");
+                          setPendingAction({ type: 'eject', vendorId: selectedVendor.id });
+                          setReasonDialogOpen(true);
+                        }}
+                        disabled={processingVendorId === selectedVendor.id}
+                        className="gap-2"
+                      >
+                        <UserMinus className="w-4 h-4" />
+                        Eject Vendor
+                      </Button>
+                    </>
                   )}
-                  <div className="flex flex-wrap gap-2 justify-end">
-                    {selectedVendor.status === "pending" && (
-                      <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleReject(selectedVendor.id)}
-                          disabled={processingVendorId === selectedVendor.id}
-                          className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          {processingVendorId === selectedVendor.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <XCircle className="w-4 h-4" />
-                          )}
-                          Reject
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={() => handleApprove(selectedVendor.id)}
-                          disabled={processingVendorId === selectedVendor.id}
-                          className="gap-2 bg-green-600 hover:bg-green-700"
-                        >
-                          {processingVendorId === selectedVendor.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="w-4 h-4" />
-                          )}
-                          Approve Vendor
-                        </Button>
-                      </>
-                    )}
 
-                    {selectedVendor.status === "approved" && (
-                      <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            if (!rejectionReason.trim()) {
-                              toast.error("Please provide a reason for termination");
-                              return;
-                            }
-                            handleStatusChange(selectedVendor.id, "terminated", rejectionReason);
-                          }}
-                          disabled={processingVendorId === selectedVendor.id}
-                          className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
-                        >
-                          <Ban className="w-4 h-4" />
-                          Terminate
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          onClick={() => {
-                            if (confirm("Are you sure you want to eject this vendor? This will remove their access immediately.")) {
-                              handleStatusChange(selectedVendor.id, "ejected", "Administrative ejection");
-                            }
-                          }}
-                          disabled={processingVendorId === selectedVendor.id}
-                          className="gap-2"
-                        >
-                          <UserMinus className="w-4 h-4" />
-                          Eject Vendor
-                        </Button>
-                      </>
-                    )}
-
-                    {(selectedVendor.status === "terminated" || selectedVendor.status === "rejected" || selectedVendor.status === "ejected") && (
+                  {selectedVendor.status === "pending" && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setActionReason("");
+                          setPendingAction({ type: 'reject', vendorId: selectedVendor.id });
+                          setReasonDialogOpen(true);
+                        }}
+                        disabled={processingVendorId === selectedVendor.id}
+                        className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Reject
+                      </Button>
                       <Button
                         type="button"
                         onClick={() => handleApprove(selectedVendor.id)}
                         disabled={processingVendorId === selectedVendor.id}
                         className="gap-2 bg-green-600 hover:bg-green-700"
                       >
-                        Re-Approve Vendor
+                        <CheckCircle2 className="w-4 h-4" />
+                        Approve Vendor
                       </Button>
-                    )}
-                  </div>
+                    </>
+                  )}
+
+                  {(selectedVendor.status === "terminated" || selectedVendor.status === "rejected" || selectedVendor.status === "ejected") && (
+                    <Button
+                      type="button"
+                      onClick={() => handleApprove(selectedVendor.id)}
+                      disabled={processingVendorId === selectedVendor.id}
+                      className="gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      Re-Approve Vendor
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -1554,55 +1547,90 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Vendor Chat Modal */}
-      <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
-        <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
-          <DialogHeader className="p-6 border-b">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-primary text-primary-foreground font-bold">
-                    {chatVendor?.businessName?.split(" ").map(n => n[0]).join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <DialogTitle className="text-lg">Chat with {chatVendor?.businessName}</DialogTitle>
-                  <DialogDescription>
-                    Direct support channel for this vendor
-                  </DialogDescription>
-                </div>
-              </div>
-            </div>
+      {/* Reason Dialog */}
+      <Dialog open={reasonDialogOpen} onOpenChange={setReasonDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingAction?.type === 'reject' && 'Reject Vendor'}
+              {pendingAction?.type === 'terminate' && 'Terminate Vendor'}
+              {pendingAction?.type === 'eject' && 'Eject Vendor'}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingAction?.type === 'reject' && 'Please provide a reason for rejecting this vendor submission.'}
+              {pendingAction?.type === 'terminate' && 'Please provide a reason for terminating this vendor.'}
+              {pendingAction?.type === 'eject' && 'Please provide a reason for ejecting this vendor. This action is immediate.'}
+            </DialogDescription>
           </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              placeholder="Enter reason..."
+              value={actionReason}
+              onChange={(e) => setActionReason(e.target.value)}
+              rows={4}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setReasonDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={pendingAction?.type === 'reject' || pendingAction?.type === 'terminate' ? 'destructive' : 'default'}
+              className={pendingAction?.type === 'terminate' ? 'bg-orange-600 hover:bg-orange-700 text-white' : ''}
+              onClick={() => {
+                if (!pendingAction || !pendingAction.vendorId) return;
 
-          <div className="flex-1 overflow-hidden flex flex-col bg-muted/5">
-            <ScrollArea className="flex-1 p-6">
-              <div className="space-y-4">
-                {/* Mock messages for now */}
-                <div className="flex justify-start">
-                  <div className="bg-muted p-3 rounded-lg max-w-[80%] text-sm">
-                    Hello, we have a question about our latest service submission.
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <div className="bg-primary text-primary-foreground p-3 rounded-lg max-w-[80%] text-sm">
-                    Hello! I'm reviewing it now. Could you please clarify the cancellation policy?
-                  </div>
-                </div>
-              </div>
-            </ScrollArea>
+                if (!actionReason.trim()) {
+                  toast.error("Please provide a reason");
+                  return;
+                }
 
-            <div className="p-4 border-t bg-background">
-              <div className="flex gap-2">
-                <Input placeholder="Type a message to the vendor..." className="flex-1" />
-                <Button size="icon">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+                if (pendingAction.type === 'reject') {
+                  const handleRejectAction = async () => {
+                    try {
+                      setProcessingVendorId(pendingAction.vendorId);
+                      setReasonDialogOpen(false);
+                      await vendorService.updateVendorStatus(pendingAction.vendorId, "rejected", actionReason);
+                      setVendors((prev) =>
+                        prev.map((v) =>
+                          v.id === pendingAction.vendorId ? { ...v, status: "rejected", rejectionReason: actionReason } : v
+                        )
+                      );
+                      if (selectedVendor && selectedVendor.id === pendingAction.vendorId) {
+                        setSelectedVendor({ ...selectedVendor, status: "rejected", rejectionReason: actionReason });
+                      }
+                      toast.success("Vendor rejected.");
+                      fetchVendors();
+                    } catch (error: any) {
+                      toast.error(error.message || "Failed to reject vendor");
+                    } finally {
+                      setProcessingVendorId(null);
+                    }
+                  }
+                  handleRejectAction();
+                } else {
+                  setReasonDialogOpen(false);
+                  handleStatusChange(pendingAction.vendorId, pendingAction.type === 'terminate' ? 'terminated' : 'ejected', actionReason);
+                }
+              }}
+            >
+              Confirm {pendingAction?.type === 'reject' ? 'Rejection' : pendingAction?.type === 'terminate' ? 'Termination' : 'Ejection'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Vendor Chat Modal */}
+      <AdminChatModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        vendorId={chatVendor?.id || null}
+        businessName={chatVendor?.businessName || "Vendor"}
+        vendorType={chatVendor?.vendorType || "Unknown"}
+      />
     </div >
   );
 };
