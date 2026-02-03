@@ -15,11 +15,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Phone, Mail, MapPin, Landmark, Loader2, FileText, Upload, Eye, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { Building2, Phone, Mail, MapPin, Landmark, Loader2, FileText, Upload, Eye, ExternalLink, Image as ImageIcon, Edit, X, CheckCircle2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { vendorService } from "@/services/vendorService";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect } from "react";
+import { chatService, UpdateRequest } from "@/services/chatService";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Clock } from "lucide-react";
 
 const vendorTypes = [
     "Accommodation", "Tours & Experiences", "Food & Dining", "Transportation",
@@ -44,6 +48,24 @@ const payoutDates = [
     { value: "1", label: "1st of the month" },
     { value: "15", label: "15th of the month" },
     { value: "last", label: "Last day of the month" },
+];
+
+const banks = [
+    "Bank of Ceylon",
+    "People's Bank",
+    "Commercial Bank",
+    "Hatton National Bank",
+    "Sampath Bank",
+    "Nations Trust Bank",
+    "DFCC Bank",
+    "Seylan Bank",
+    "National Development Bank",
+    "Pan Asia Bank",
+    "Union Bank",
+    "Amana Bank",
+    "HSBC",
+    "Standard Chartered",
+    "Other"
 ];
 
 const profileSchema = z.object({
@@ -84,13 +106,19 @@ const DocumentUploadField = ({
     fileType,
     vendorId,
     currentUrl,
-    onUploadSuccess
+    onUploadSuccess,
+    fieldName,
+    PendingValueIndicator,
+    disabled
 }: {
     label: string,
     fileType: string,
     vendorId: string,
     currentUrl?: string,
-    onUploadSuccess: (url: string) => void
+    onUploadSuccess: (url: string) => void,
+    fieldName?: string,
+    PendingValueIndicator?: any,
+    disabled?: boolean
 }) => {
     const [isUploading, setIsUploading] = useState(false);
 
@@ -115,50 +143,57 @@ const DocumentUploadField = ({
     return (
         <div className="space-y-2">
             <FormLabel>{label}</FormLabel>
-            <div className="flex items-center gap-4 p-4 border rounded-lg bg-background">
-                <div className="p-2 bg-primary/10 rounded-full">
-                    <FileText className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                        {currentUrl ? "Document on file" : "No document uploaded"}
-                    </p>
-                    {currentUrl && (
-                        <a
-                            href={currentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-0.5"
-                        >
-                            View current file <ExternalLink className="w-3 h-3" />
-                        </a>
-                    )}
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="relative"
-                        disabled={isUploading}
-                    >
-                        {isUploading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <>
-                                <Upload className="w-4 h-4 mr-2" />
-                                {currentUrl ? "Replace" : "Upload"}
-                            </>
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-4 p-4 border rounded-lg bg-background">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                        <FileText className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                            {currentUrl ? "Document on file" : "No document uploaded"}
+                        </p>
+                        {currentUrl && (
+                            <a
+                                href={currentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-0.5"
+                            >
+                                View current file <ExternalLink className="w-3 h-3" />
+                            </a>
                         )}
-                        <input
-                            type="file"
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                            onChange={handleFileChange}
-                            accept=".pdf,.jpg,.jpeg,.png"
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="relative"
                             disabled={isUploading}
-                        />
-                    </Button>
+                        >
+                            {isUploading ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <>
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    {currentUrl ? "Replace" : "Upload"}
+                                </>
+                            )}
+                            <input
+                                type="file"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                onChange={handleFileChange}
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                disabled={isUploading || disabled}
+                            />
+                        </Button>
+                    </div>
                 </div>
+                {fieldName && PendingValueIndicator && (
+                    <div className="px-1">
+                        <PendingValueIndicator fieldName={fieldName} />
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -172,6 +207,105 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
         nicPassport: initialData.nic_passport_url,
         tourismLicense: initialData.tourism_license_url,
     });
+    const [pendingRequests, setPendingRequests] = useState<UpdateRequest[]>([]);
+    const [unlockedFields, setUnlockedFields] = useState<Record<string, boolean>>({});
+
+    useEffect(() => {
+        fetchPendingRequests();
+    }, []);
+
+    const fetchPendingRequests = async () => {
+        try {
+            const res = await chatService.getVendorUpdateRequests('pending');
+            if (res.success) {
+                setPendingRequests(res.requests);
+            }
+        } catch (error) {
+            console.error("Failed to fetch pending requests:", error);
+        }
+    };
+
+    // Ensure locked fields stay in sync with confirmed data
+    // This addresses "do not make it updated like usually" by reverting input to confirmed value when locked
+    useEffect(() => {
+        const fields = Object.keys(profileSchema.shape);
+        fields.forEach(field => {
+            if (!unlockedFields[field]) {
+                const dbKey = chatService.getDbKey(field);
+                const confirmedValue = initialData[dbKey];
+                if (confirmedValue !== undefined) {
+                    form.setValue(field as any, confirmedValue);
+                }
+            }
+        });
+    }, [unlockedFields, initialData]);
+
+    // Helper to get pending value for a field
+    const getPendingValue = (fieldName: string) => {
+        const dbKey = chatService.getDbKey(fieldName);
+        // Find the most recent pending request that contains this field
+        const latestRequest = [...pendingRequests]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .find(req => req.requested_data && req.requested_data[dbKey] !== undefined);
+
+        return latestRequest ? latestRequest.requested_data[dbKey] : null;
+    };
+
+    const PendingValueIndicator = ({ fieldName }: { fieldName: string }) => {
+        const pendingValue = getPendingValue(fieldName);
+        if (pendingValue === null || pendingValue === undefined) return null;
+
+        const isUrl = typeof pendingValue === 'string' && pendingValue.startsWith('http');
+
+        return (
+            <div className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1.5 bg-red-50/50 p-1.5 rounded-md border border-red-100">
+                <Clock className="w-3 h-3 shrink-0" />
+                <div className="flex flex-wrap items-center gap-1">
+                    <span>Pending Update: </span>
+                    {isUrl ? (
+                        <a href={pendingValue} target="_blank" rel="noopener noreferrer" className="underline hover:text-red-700 transition-colors flex items-center gap-0.5 font-bold">
+                            View New Attachment <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                    ) : (
+                        <span className="font-bold">{Array.isArray(pendingValue) ? pendingValue.join(", ") : String(pendingValue)}</span>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const EditableLabel = ({ label, fieldName, icon: Icon }: { label: string, fieldName: string, icon?: any }) => {
+        const isUnlocked = unlockedFields[fieldName];
+        const hasPending = getPendingValue(fieldName) !== null;
+
+        return (
+            <div className="flex items-center justify-between mb-1.5">
+                <FormLabel className="flex items-center gap-2 text-sm font-semibold">
+                    {Icon && <Icon className="w-4 h-4 text-muted-foreground" />}
+                    {label}
+                </FormLabel>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={`h-7 px-2 text-[10px] gap-1.5 transition-all ${isUnlocked ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/5'}`}
+                    onClick={() => setUnlockedFields(prev => ({ ...prev, [fieldName]: !prev[fieldName] }))}
+                >
+                    {isUnlocked ? (
+                        <>
+                            <X className="w-3 h-3" />
+                            Lock
+                        </>
+                    ) : (
+                        <>
+                            <Edit className="w-3 h-3" />
+                            Edit
+                        </>
+                    )}
+                </Button>
+            </div>
+        );
+    };
 
     const form = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
@@ -206,14 +340,47 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
         setIsUpdating(true);
         try {
             // Merge document URLs from local state into form values before submission
-            const updatedValues = {
+            const fullValues = {
                 ...values,
                 regCertificateUrl: documents.regCertificate,
                 nicPassportUrl: documents.nicPassport,
                 tourismLicenseUrl: documents.tourismLicense,
             };
-            const response = await vendorService.updateVendorProfile(updatedValues);
+
+            // Optimization: Only send changed fields
+            const changedValues: any = {};
+            let hasChanges = false;
+
+            Object.keys(fullValues).forEach(key => {
+                const dbKey = chatService.getDbKey(key);
+                const currentValue = initialData[dbKey];
+                const newValue = (fullValues as any)[key];
+
+                // Deep comparison for arrays (operatingAreas)
+                if (Array.isArray(newValue)) {
+                    const currentArray = currentValue || [];
+                    if (JSON.stringify([...newValue].sort()) !== JSON.stringify([...currentArray].sort())) {
+                        changedValues[key] = newValue;
+                        hasChanges = true;
+                    }
+                } else if (newValue !== currentValue) {
+                    // Simple comparison for primitives
+                    if (newValue || currentValue) { // Avoid sending null vs undefined as change
+                        changedValues[key] = newValue;
+                        hasChanges = true;
+                    }
+                }
+            });
+
+            if (!hasChanges) {
+                toast.info("No changes detected");
+                setIsUpdating(false);
+                return;
+            }
+
+            const response = await vendorService.updateVendorProfile(changedValues);
             if (response.success) {
+                setUnlockedFields({}); // Lock all fields on success
                 // Check if changes are pending approval
                 if (response.pending_approval) {
                     toast.info(response.message || "Your profile update request has been submitted for approval. You will be notified once it is reviewed.", {
@@ -264,10 +431,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="businessName"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Business Name</FormLabel>
+                                        <EditableLabel label="Business Name" fieldName="businessName" />
                                         <FormControl>
-                                            <Input {...field} placeholder="e.g., Adventure Paradise Tours" />
+                                            <Input
+                                                {...field}
+                                                placeholder="e.g., Adventure Paradise Tours"
+                                                disabled={!unlockedFields["businessName"]}
+                                                className={!unlockedFields["businessName"] ? "bg-muted/30 border-transparent transition-all" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="businessName" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -277,10 +450,14 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="vendorType"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Vendor Type</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <EditableLabel label="Vendor Type" fieldName="vendorType" />
+                                        <Select
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                            disabled={!unlockedFields["vendorType"]}
+                                        >
                                             <FormControl>
-                                                <SelectTrigger>
+                                                <SelectTrigger className={!unlockedFields["vendorType"] ? "bg-muted/30 border-transparent mt-0" : "border-primary/50 ring-1 ring-primary/20 mt-0"}>
                                                     <SelectValue placeholder="Select vendor type" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -292,6 +469,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        <PendingValueIndicator fieldName="vendorType" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -302,10 +480,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     name="vendorTypeOther"
                                     render={({ field }) => (
                                         <FormItem className="col-span-2">
-                                            <FormLabel>Specify Vendor Type</FormLabel>
+                                            <EditableLabel label="Specify Vendor Type" fieldName="vendorTypeOther" />
                                             <FormControl>
-                                                <Input {...field} placeholder="Please specify" />
+                                                <Input
+                                                    {...field}
+                                                    placeholder="Please specify"
+                                                    disabled={!unlockedFields["vendorTypeOther"]}
+                                                    className={!unlockedFields["vendorTypeOther"] ? "bg-muted/30 border-transparent transition-all" : "border-primary/50 ring-1 ring-primary/20"}
+                                                />
                                             </FormControl>
+                                            <PendingValueIndicator fieldName="vendorTypeOther" />
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -316,10 +500,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="legalName"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Legal Name (Optional)</FormLabel>
+                                        <EditableLabel label="Legal Name (Optional)" fieldName="legalName" />
                                         <FormControl>
-                                            <Input {...field} placeholder="Full Legal Entity Name" />
+                                            <Input
+                                                {...field}
+                                                placeholder="Full Legal Entity Name"
+                                                disabled={!unlockedFields["legalName"]}
+                                                className={!unlockedFields["legalName"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="legalName" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -332,10 +522,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="contactPerson"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Contact Person</FormLabel>
+                                        <EditableLabel label="Contact Person" fieldName="contactPerson" />
                                         <FormControl>
-                                            <Input {...field} placeholder="e.g., John Doe" />
+                                            <Input
+                                                {...field}
+                                                placeholder="e.g., John Doe"
+                                                disabled={!unlockedFields["contactPerson"]}
+                                                className={!unlockedFields["contactPerson"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="contactPerson" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -359,10 +555,24 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="phoneNumber"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Phone Number</FormLabel>
+                                        <div className="flex items-center justify-between">
+                                            <EditableLabel label="Phone Number" fieldName="phoneNumber" />
+                                            {initialData.phone_verified && (
+                                                <div className="flex items-center gap-1 text-[10px] text-green-600 font-bold mb-1 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                                                    <CheckCircle2 className="w-3 h-3" />
+                                                    <span>Verified</span>
+                                                </div>
+                                            )}
+                                        </div>
                                         <FormControl>
-                                            <Input {...field} placeholder="+94 77 XXX XXXX" />
+                                            <Input
+                                                {...field}
+                                                placeholder="+94 77 XXX XXXX"
+                                                disabled={!unlockedFields["phoneNumber"]}
+                                                className={!unlockedFields["phoneNumber"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="phoneNumber" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -374,8 +584,8 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                             name="operatingAreas"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Operating Areas</FormLabel>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+                                    <EditableLabel label="Operating Areas" fieldName="operatingAreas" />
+                                    <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-2 ${!unlockedFields["operatingAreas"] ? "opacity-70 pointer-events-none" : ""}`}>
                                         {operatingAreas.map((area) => (
                                             <button
                                                 key={area}
@@ -390,6 +600,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                             </button>
                                         ))}
                                     </div>
+                                    <PendingValueIndicator fieldName="operatingAreas" />
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -400,10 +611,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="operatingAreasOther"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Other Areas</FormLabel>
+                                        <EditableLabel label="Other Areas" fieldName="operatingAreasOther" />
                                         <FormControl>
-                                            <Textarea {...field} placeholder="Please list other areas" />
+                                            <Textarea
+                                                {...field}
+                                                placeholder="Please list other areas"
+                                                disabled={!unlockedFields["operatingAreasOther"]}
+                                                className={!unlockedFields["operatingAreasOther"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="operatingAreasOther" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -429,10 +646,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                             name="businessAddress"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Business Address</FormLabel>
+                                    <EditableLabel label="Business Address" fieldName="businessAddress" />
                                     <FormControl>
-                                        <Textarea {...field} placeholder="Enter your registered business address" />
+                                        <Textarea
+                                            {...field}
+                                            placeholder="Enter your registered business address"
+                                            disabled={!unlockedFields["businessAddress"]}
+                                            className={!unlockedFields["businessAddress"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                        />
                                     </FormControl>
+                                    <PendingValueIndicator fieldName="businessAddress" />
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -443,10 +666,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="businessRegNumber"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Business Registration Number</FormLabel>
+                                        <EditableLabel label="Business Registration Number" fieldName="businessRegNumber" />
                                         <FormControl>
-                                            <Input {...field} placeholder="e.g., BR-XXXXX" />
+                                            <Input
+                                                {...field}
+                                                placeholder="e.g., BR-XXXXX"
+                                                disabled={!unlockedFields["businessRegNumber"]}
+                                                className={!unlockedFields["businessRegNumber"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="businessRegNumber" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -456,10 +685,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="taxId"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Tax ID / VAT (Optional)</FormLabel>
+                                        <EditableLabel label="Tax ID / VAT (Optional)" fieldName="taxId" />
                                         <FormControl>
-                                            <Input {...field} placeholder="Tax Identification Number" />
+                                            <Input
+                                                {...field}
+                                                placeholder="Tax Identification Number"
+                                                disabled={!unlockedFields["taxId"]}
+                                                className={!unlockedFields["taxId"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="taxId" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -470,27 +705,45 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                         <div className="space-y-4 pt-4 border-t">
                             <h3 className="text-sm font-semibold text-foreground">Documents</h3>
                             <div className="grid gap-4">
-                                <DocumentUploadField
-                                    label="Business Registration Certificate"
-                                    fileType="reg_certificate"
-                                    vendorId={initialData.id}
-                                    currentUrl={documents.regCertificate}
-                                    onUploadSuccess={(url) => setDocuments(prev => ({ ...prev, regCertificate: url }))}
-                                />
-                                <DocumentUploadField
-                                    label="NIC / Passport"
-                                    fileType="nic_passport"
-                                    vendorId={initialData.id}
-                                    currentUrl={documents.nicPassport}
-                                    onUploadSuccess={(url) => setDocuments(prev => ({ ...prev, nicPassport: url }))}
-                                />
-                                <DocumentUploadField
-                                    label="Tourism License (Optional)"
-                                    fileType="tourism_license"
-                                    vendorId={initialData.id}
-                                    currentUrl={documents.tourismLicense}
-                                    onUploadSuccess={(url) => setDocuments(prev => ({ ...prev, tourismLicense: url }))}
-                                />
+                                <div className="space-y-4">
+                                    <EditableLabel label="Business Registration Certificate" fieldName="regCertificateUrl" />
+                                    <DocumentUploadField
+                                        label=""
+                                        fileType="reg_certificate"
+                                        vendorId={initialData.id}
+                                        currentUrl={documents.regCertificate}
+                                        onUploadSuccess={(url) => setDocuments(prev => ({ ...prev, regCertificate: url }))}
+                                        fieldName="regCertificateUrl"
+                                        PendingValueIndicator={PendingValueIndicator}
+                                        disabled={!unlockedFields["regCertificateUrl"]}
+                                    />
+                                </div>
+                                <div className="space-y-4">
+                                    <EditableLabel label="NIC / Passport" fieldName="nicPassportUrl" />
+                                    <DocumentUploadField
+                                        label=""
+                                        fileType="nic_passport"
+                                        vendorId={initialData.id}
+                                        currentUrl={documents.nicPassport}
+                                        onUploadSuccess={(url) => setDocuments(prev => ({ ...prev, nicPassport: url }))}
+                                        fieldName="nicPassportUrl"
+                                        PendingValueIndicator={PendingValueIndicator}
+                                        disabled={!unlockedFields["nicPassportUrl"]}
+                                    />
+                                </div>
+                                <div className="space-y-4">
+                                    <EditableLabel label="Tourism License (Optional)" fieldName="tourismLicenseUrl" />
+                                    <DocumentUploadField
+                                        label=""
+                                        fileType="tourism_license"
+                                        vendorId={initialData.id}
+                                        currentUrl={documents.tourismLicense}
+                                        onUploadSuccess={(url) => setDocuments(prev => ({ ...prev, tourismLicense: url }))}
+                                        fieldName="tourismLicenseUrl"
+                                        PendingValueIndicator={PendingValueIndicator}
+                                        disabled={!unlockedFields["tourismLicenseUrl"]}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -514,23 +767,66 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="bankName"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Bank Name</FormLabel>
-                                        <FormControl>
-                                            <Input {...field} placeholder="e.g., Bank of Ceylon" />
-                                        </FormControl>
+                                        <EditableLabel label="Bank Name" fieldName="bankName" />
+                                        <Select
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                            disabled={!unlockedFields["bankName"]}
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger className={!unlockedFields["bankName"] ? "bg-muted/30 border-transparent mt-0" : "border-primary/50 ring-1 ring-primary/20 mt-0"}>
+                                                    <SelectValue placeholder="Select your bank" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {banks.map((bank) => (
+                                                    <SelectItem key={bank} value={bank}>
+                                                        {bank}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <PendingValueIndicator fieldName="bankName" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
+                            {form.watch("bankName") === "Other" && (
+                                <FormField
+                                    control={form.control}
+                                    name="bankNameOther"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <EditableLabel label="Specify Bank Name" fieldName="bankNameOther" />
+                                            <FormControl>
+                                                <Input
+                                                    {...field}
+                                                    placeholder="Enter bank name"
+                                                    disabled={!unlockedFields["bankNameOther"]}
+                                                    className={!unlockedFields["bankNameOther"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                />
+                                            </FormControl>
+                                            <PendingValueIndicator fieldName="bankNameOther" />
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
                             <FormField
                                 control={form.control}
                                 name="bankBranch"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Bank Branch</FormLabel>
+                                        <EditableLabel label="Bank Branch" fieldName="bankBranch" />
                                         <FormControl>
-                                            <Input {...field} placeholder="e.g., Colombo Main" />
+                                            <Input
+                                                {...field}
+                                                placeholder="e.g., Colombo Main"
+                                                disabled={!unlockedFields["bankBranch"]}
+                                                className={!unlockedFields["bankBranch"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="bankBranch" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -542,10 +838,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="accountHolderName"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Account Holder Name</FormLabel>
+                                        <EditableLabel label="Account Holder Name" fieldName="accountHolderName" />
                                         <FormControl>
-                                            <Input {...field} placeholder="Name exactly as on bank documents" />
+                                            <Input
+                                                {...field}
+                                                placeholder="Name exactly as on bank documents"
+                                                disabled={!unlockedFields["accountHolderName"]}
+                                                className={!unlockedFields["accountHolderName"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="accountHolderName" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -555,10 +857,16 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="accountNumber"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Account Number</FormLabel>
+                                        <EditableLabel label="Account Number" fieldName="accountNumber" />
                                         <FormControl>
-                                            <Input {...field} placeholder="e.g., 000123456789" />
+                                            <Input
+                                                {...field}
+                                                placeholder="e.g., 000123456789"
+                                                disabled={!unlockedFields["accountNumber"]}
+                                                className={!unlockedFields["accountNumber"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            />
                                         </FormControl>
+                                        <PendingValueIndicator fieldName="accountNumber" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -571,10 +879,14 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="payoutCycle"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Payout Cycle</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <EditableLabel label="Payout Cycle" fieldName="payoutCycle" />
+                                        <Select
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                            disabled={!unlockedFields["payoutCycle"]}
+                                        >
                                             <FormControl>
-                                                <SelectTrigger>
+                                                <SelectTrigger className={!unlockedFields["payoutCycle"] ? "bg-muted/30 border-transparent mt-0" : "border-primary/50 ring-1 ring-primary/20 mt-0"}>
                                                     <SelectValue placeholder="Select payout cycle" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -586,6 +898,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        <PendingValueIndicator fieldName="payoutCycle" />
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -596,10 +909,14 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     name="payoutDate"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Payout Date</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <EditableLabel label="Payout Date" fieldName="payoutDate" />
+                                            <Select
+                                                onValueChange={field.onChange}
+                                                defaultValue={field.value}
+                                                disabled={!unlockedFields["payoutDate"]}
+                                            >
                                                 <FormControl>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className={!unlockedFields["payoutDate"] ? "bg-muted/30 border-transparent mt-0" : "border-primary/50 ring-1 ring-primary/20 mt-0"}>
                                                         <SelectValue placeholder="Select payout date" />
                                                     </SelectTrigger>
                                                 </FormControl>
@@ -611,6 +928,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                                     ))}
                                                 </SelectContent>
                                             </Select>
+                                            <PendingValueIndicator fieldName="payoutDate" />
                                             <FormMessage />
                                         </FormItem>
                                     )}

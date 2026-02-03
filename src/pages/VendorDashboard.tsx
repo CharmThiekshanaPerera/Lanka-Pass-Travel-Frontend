@@ -88,40 +88,39 @@ const VendorDashboard = () => {
     }, 2500);
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [profileRes, statsRes] = await Promise.all([
-          vendorService.getVendorProfile(),
-          vendorService.getVendorStats()
-        ]);
+  const refreshData = async () => {
+    try {
+      const [profileRes, statsRes] = await Promise.all([
+        vendorService.getVendorProfile(),
+        vendorService.getVendorStats()
+      ]);
 
-        if (profileRes.success) {
-          const v = profileRes.vendor;
-          setFullVendorData(v);
-          setVendorInfo({
-            name: v.contact_person,
-            businessName: v.business_name,
-            email: v.email,
-            avatar: "",
-            status: v.status,
-            memberSince: new Date(v.created_at).toLocaleString('default', { month: 'long', year: 'numeric' })
-          });
-          setServices(profileRes.services || []);
-        }
-
-        if (statsRes.success) {
-          setStats(statsRes.stats);
-        }
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-        toast.error("Failed to load dashboard data");
-      } finally {
-        setIsLoading(false);
+      if (profileRes.success) {
+        const v = profileRes.vendor;
+        setFullVendorData(v);
+        setVendorInfo({
+          name: v.contact_person,
+          businessName: v.business_name,
+          email: v.email,
+          avatar: "",
+          status: v.status,
+          memberSince: new Date(v.created_at).toLocaleString('default', { month: 'long', year: 'numeric' })
+        });
+        setServices(profileRes.services || []);
       }
-    };
 
-    fetchData();
+      if (statsRes.success) {
+        setStats(statsRes.stats);
+      }
+    } catch (error) {
+      console.error("Failed to refresh dashboard data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshData();
   }, []);
 
   const navItems = [
@@ -304,7 +303,7 @@ const VendorDashboard = () => {
             </div>
           )}
 
-          {activeTab === "services" && <ServicesList services={services} />}
+          {activeTab === "services" && <ServicesList services={services} onRefresh={refreshData} />}
           {activeTab === "media" && <MediaGallery vendorId={fullVendorData?.id} />}
           {activeTab === "calendar" && <CalendarView services={services} />}
           {activeTab === "bookings" && <BookingsTable />}
@@ -316,20 +315,7 @@ const VendorDashboard = () => {
                 initialData={fullVendorData}
                 onUpdate={() => {
                   toast.success("Profile updated successfully");
-                  // Trigger a re-fetch of vendor data to update the UI
-                  const fetchData = async () => {
-                    const profileRes = await vendorService.getVendorProfile();
-                    if (profileRes.success) {
-                      setFullVendorData(profileRes.vendor);
-                      setVendorInfo(prev => ({
-                        ...prev,
-                        name: profileRes.vendor.contact_person,
-                        businessName: profileRes.vendor.business_name,
-                        email: profileRes.vendor.email
-                      }));
-                    }
-                  };
-                  fetchData();
+                  refreshData();
                 }}
               />
             </div>
