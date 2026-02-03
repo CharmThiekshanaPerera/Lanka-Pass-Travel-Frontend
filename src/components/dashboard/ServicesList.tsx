@@ -784,13 +784,13 @@ const ServiceForm = ({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Tabs defaultValue="basics" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6 mb-6">
-            <TabsTrigger value="basics">Basics</TabsTrigger>
-            <TabsTrigger value="availability">Availability</TabsTrigger>
-            <TabsTrigger value="slots">Time Slots</TabsTrigger>
-            <TabsTrigger value="pricing">Pricing</TabsTrigger>
-            <TabsTrigger value="media">Media</TabsTrigger>
-            <TabsTrigger value="policies">Policies</TabsTrigger>
+          <TabsList className="w-full flex h-auto flex-wrap md:grid md:grid-cols-6 mb-6 gap-1 bg-muted/50 p-1">
+            <TabsTrigger value="basics" className="flex-1 min-w-[100px]">Basics</TabsTrigger>
+            <TabsTrigger value="availability" className="flex-1 min-w-[100px]">Availability</TabsTrigger>
+            <TabsTrigger value="slots" className="flex-1 min-w-[100px]">Time Slots</TabsTrigger>
+            <TabsTrigger value="pricing" className="flex-1 min-w-[100px]">Pricing</TabsTrigger>
+            <TabsTrigger value="media" className="flex-1 min-w-[100px]">Media</TabsTrigger>
+            <TabsTrigger value="policies" className="flex-1 min-w-[100px]">Policies</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basics" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
