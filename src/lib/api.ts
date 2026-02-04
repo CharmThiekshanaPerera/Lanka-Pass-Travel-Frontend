@@ -28,12 +28,8 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle common errors
-    if (error.response?.status === 401) {
-      // Handle unauthorized
-      localStorage.removeItem('access_token');
-      window.location.href = '/vendor-login';
-    }
+    // Note: We removed the auto-logout on 401 here to allow the authService
+    // to handle token refreshes.
 
     if (error.response?.status === 500) {
       console.error('Server error:', error.response.data);
