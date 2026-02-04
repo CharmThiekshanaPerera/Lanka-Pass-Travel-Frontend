@@ -597,6 +597,23 @@ class VendorService {
       throw new Error(error.response?.data?.detail || 'Failed to export vendors');
     }
   }
+
+  // Delete vendor file
+  async deleteVendorFile(vendorId: string, fileUrl: string, fileType: string, serviceId?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.delete('/api/vendor/delete-file', {
+        data: {
+          vendor_id: vendorId,
+          file_url: fileUrl,
+          file_type: fileType,
+          service_id: serviceId
+        }
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to delete file');
+    }
+  }
 }
 
 export const vendorService = new VendorService();
