@@ -189,7 +189,7 @@ const UpdateRequestCard = ({
                                                         </div>
                                                     ) : (
                                                         <div className="space-y-2">
-                                                            <div className="text-muted-foreground whitespace-pre-wrap break-words italic bg-muted/30 p-2.5 rounded border border-dashed text-xs min-w-0">
+                                                            <div className="text-muted-foreground whitespace-pre-wrap break-all italic bg-muted/30 p-2.5 rounded border border-dashed text-xs min-w-0">
                                                                 <span className="text-[10px] opacity-60 block mb-1 uppercase font-bold tracking-tighter">Current Approval</span>
                                                                 {String(currentValue || "(Empty)")}
                                                             </div>
@@ -198,7 +198,7 @@ const UpdateRequestCard = ({
                                                                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
                                                                 </div>
                                                             </div>
-                                                            <div className="font-semibold whitespace-pre-wrap break-words bg-amber-500/5 p-3 rounded-lg border-2 border-amber-500/20 text-xs min-w-0 shadow-sm">
+                                                            <div className="font-semibold whitespace-pre-wrap break-all bg-amber-500/5 p-3 rounded-lg border-2 border-amber-500/20 text-xs min-w-0 shadow-sm">
                                                                 <div className="flex items-center gap-2 mb-2">
                                                                     <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
                                                                     <span className="text-[10px] text-amber-600 uppercase font-bold tracking-widest">Requested Change</span>
