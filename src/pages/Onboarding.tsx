@@ -41,6 +41,7 @@ const Onboarding = () => {
         if (!formData.contactPerson) { toast.error("Contact Person is required"); return false; }
         if (!formData.email) { toast.error("Email Address is required"); return false; }
         if (!formData.phoneNumber) { toast.error("Mobile Number is required"); return false; }
+        if (!formData.phoneVerified) { toast.error("Please verify your mobile number"); return false; }
         if (!formData.operatingAreas || formData.operatingAreas.length === 0) { toast.error("Please select at least one Operating Area"); return false; }
         return true;
 
@@ -106,26 +107,19 @@ const Onboarding = () => {
   };
 
   const handleStepClick = (step: number) => {
-    // Only allow navigating to visited/completed steps or the next available step (sequential enforcement optional but good)
-    // For now, let's allow clicking any previous step, or the immediate next step if current is valid
     if (step < currentStep) {
       setCurrentStep(step);
       window.scrollTo({ top: 0, behavior: "smooth" });
-    } else if (step > currentStep) {
-      // If trying to jump forward, validate current step first
+    } else if (step === currentStep + 1) {
       if (validateStep(currentStep)) {
-        // Basic sequential check: can only jump one step ahead or to completed steps
-        // But simpler is: restrict jumping ahead unless it's a completed step. 
-        // Let's stick to: Use Next button for forward navigation to ensure validation. 
-        // Click allows backward or re-visiting completed steps.
-        if (completedSteps.includes(step - 1) || step === currentStep + 1) {
-          // Actually, let's strictly enforce standard wizard behavior:
-          // Can click any previous step.
-          // Can click next step only if current step is completed/valid (handled by handleNext)
-          // Step indicator click usually just for navigation to previous.
-          toast.info("Please use the Continue button to proceed.");
+        if (!completedSteps.includes(currentStep)) {
+          setCompletedSteps([...completedSteps, currentStep]);
         }
+        setCurrentStep(step);
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
+    } else {
+      toast.info("Please complete the current step and click Continue to proceed.");
     }
   };
 
@@ -213,7 +207,12 @@ const Onboarding = () => {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
-            <Button variant="next" size="lg" onClick={handleNext}>
+            <Button
+              variant="next"
+              size="lg"
+              onClick={handleNext}
+              className={currentStep === 1 && !formData.phoneVerified ? "opacity-50 cursor-not-allowed" : ""}
+            >
               Continue
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>

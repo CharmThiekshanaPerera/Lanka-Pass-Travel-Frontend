@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { authService, User } from '../services/supabaseService';
 
 interface AuthContextType {
@@ -30,12 +30,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(() => authService.getCurrentUser());
   const [loading, setLoading] = useState(false); // No loading state needed since we have optimistic user
 
-  // Check for existing session on mount (Background Verification)
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
+  const checkUser = useCallback(async () => {
     try {
       const storedUser = authService.getCurrentUser();
 
@@ -51,9 +46,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error('Auth check failed:', error);
     }
-  };
+  }, []);
 
-  const login = async (email: string, password: string) => {
+  // Check for existing session on mount (Background Verification)
+  useEffect(() => {
+    checkUser();
+  }, [checkUser]);
+
+  const login = useCallback(async (email: string, password: string) => {
     try {
       const response = await authService.login({ email, password });
       setUser(response.user);
@@ -64,9 +64,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         error: error.response?.data?.detail || 'Login failed'
       };
     }
-  };
+  }, []);
 
-  const register = async (name: string, email: string, password: string, role: string) => {
+  const register = useCallback(async (name: string, email: string, password: string, role: string) => {
     try {
       const response = await authService.register({ name, email, password, role });
       setUser(response.user);
@@ -77,18 +77,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         error: error.response?.data?.detail || 'Registration failed'
       };
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     authService.logout();
     setUser(null);
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     await checkUser();
-  };
+  }, [checkUser]);
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     loading,
     login,
@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     logout,
     refreshUser,
     isAuthenticated: !!user,
-  };
+  }), [user, loading, login, register, logout, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
