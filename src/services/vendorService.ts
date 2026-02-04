@@ -71,8 +71,7 @@ export interface VendorRegistrationData {
   accountHolderName: string;
   accountNumber: string;
   bankBranch: string;
-  payoutCycle?: string;
-  payoutDate?: string;
+
 
   // Step 7: Agreements
   acceptTerms: boolean;
@@ -190,8 +189,7 @@ class VendorService {
         accountHolderName: formData.accountHolderName,
         accountNumber: formData.accountNumber,
         bankBranch: formData.bankBranch,
-        payoutCycle: formData.payoutCycle,
-        payoutDate: formData.payoutDate,
+
 
         // Step 7
         acceptTerms: formData.acceptTerms,

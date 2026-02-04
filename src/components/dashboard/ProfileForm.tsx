@@ -37,18 +37,7 @@ const operatingAreas = [
     "Bentota", "Arugam Bay", "Dambulla", "Polonnaruwa", "Other",
 ];
 
-const payoutCycles = [
-    { value: "weekly", label: "Weekly (Every Monday)" },
-    { value: "biweekly", label: "Bi-Weekly (Every other Monday)" },
-    { value: "monthly", label: "Monthly" },
-    { value: "quarterly", label: "Quarterly" },
-];
 
-const payoutDates = [
-    { value: "1", label: "1st of the month" },
-    { value: "15", label: "15th of the month" },
-    { value: "last", label: "Last day of the month" },
-];
 
 const banks = [
     "Bank of Ceylon",
@@ -86,8 +75,7 @@ const profileSchema = z.object({
     accountHolderName: z.string().min(2, "Account holder name is required"),
     accountNumber: z.string().min(5, "Account number is required"),
     bankBranch: z.string().min(2, "Bank branch is required"),
-    payoutCycle: z.string().optional(),
-    payoutDate: z.string().optional(),
+
     regCertificateUrl: z.string().optional(),
     nicPassportUrl: z.string().optional(),
     tourismLicenseUrl: z.string().optional(),
@@ -201,6 +189,7 @@ const DocumentUploadField = ({
 
 const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false); // Global edit mode
     // Local state for document URLs to reflect immediate updates
     const [documents, setDocuments] = useState({
         regCertificate: initialData.reg_certificate_url,
@@ -208,7 +197,6 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
         tourismLicense: initialData.tourism_license_url,
     });
     const [pendingRequests, setPendingRequests] = useState<UpdateRequest[]>([]);
-    const [unlockedFields, setUnlockedFields] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         fetchPendingRequests();
@@ -224,21 +212,6 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
             console.error("Failed to fetch pending requests:", error);
         }
     };
-
-    // Ensure locked fields stay in sync with confirmed data
-    // This addresses "do not make it updated like usually" by reverting input to confirmed value when locked
-    useEffect(() => {
-        const fields = Object.keys(profileSchema.shape);
-        fields.forEach(field => {
-            if (!unlockedFields[field]) {
-                const dbKey = chatService.getDbKey(field);
-                const confirmedValue = initialData[dbKey];
-                if (confirmedValue !== undefined) {
-                    form.setValue(field as any, confirmedValue);
-                }
-            }
-        });
-    }, [unlockedFields, initialData]);
 
     // Helper to get pending value for a field
     const getPendingValue = (fieldName: string) => {
@@ -274,39 +247,6 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
         );
     };
 
-    const EditableLabel = ({ label, fieldName, icon: Icon }: { label: string, fieldName: string, icon?: any }) => {
-        const isUnlocked = unlockedFields[fieldName];
-        const hasPending = getPendingValue(fieldName) !== null;
-
-        return (
-            <div className="flex items-center justify-between mb-1.5">
-                <FormLabel className="flex items-center gap-2 text-sm font-semibold">
-                    {Icon && <Icon className="w-4 h-4 text-muted-foreground" />}
-                    {label}
-                </FormLabel>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className={`h-7 px-2 text-[10px] gap-1.5 transition-all ${isUnlocked ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/5'}`}
-                    onClick={() => setUnlockedFields(prev => ({ ...prev, [fieldName]: !prev[fieldName] }))}
-                >
-                    {isUnlocked ? (
-                        <>
-                            <X className="w-3 h-3" />
-                            Lock
-                        </>
-                    ) : (
-                        <>
-                            <Edit className="w-3 h-3" />
-                            Edit
-                        </>
-                    )}
-                </Button>
-            </div>
-        );
-    };
-
     const form = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
         defaultValues: {
@@ -327,8 +267,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
             accountHolderName: initialData.account_holder_name || "",
             accountNumber: initialData.account_number || "",
             bankBranch: initialData.bank_branch || "",
-            payoutCycle: initialData.payout_cycle || "",
-            payoutDate: initialData.payout_date || "",
+
             regCertificateUrl: initialData.reg_certificate_url || "",
             nicPassportUrl: initialData.nic_passport_url || "",
             tourismLicenseUrl: initialData.tourism_license_url || "",
@@ -380,7 +319,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
 
             const response = await vendorService.updateVendorProfile(changedValues);
             if (response.success) {
-                setUnlockedFields({}); // Lock all fields on success
+                setIsEditing(false); // Exit edit mode on success
                 // Check if changes are pending approval
                 if (response.pending_approval) {
                     toast.info(response.message || "Your profile update request has been submitted for approval. You will be notified once it is reviewed.", {
@@ -389,6 +328,8 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                             ? `Fields pending: ${response.changed_fields.join(", ")}`
                             : undefined
                     });
+                    // Refresh pending requests to show indicators
+                    fetchPendingRequests();
                 } else {
                     toast.success(response.message || "Profile updated successfully");
                 }
@@ -401,6 +342,34 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
         }
     }
 
+    const handleCancel = () => {
+        setIsEditing(false);
+        form.reset({
+            businessName: initialData.business_name || "",
+            legalName: initialData.legal_name || "",
+            contactPerson: initialData.contact_person || "",
+            email: initialData.email || "",
+            phoneNumber: initialData.phone_number || "",
+            vendorType: initialData.vendor_type || "",
+            vendorTypeOther: initialData.vendor_type_other || "",
+            operatingAreas: initialData.operating_areas || [],
+            operatingAreasOther: initialData.operating_areas_other || "",
+            businessAddress: initialData.business_address || "",
+            businessRegNumber: initialData.business_reg_number || "",
+            taxId: initialData.tax_id || "",
+            bankName: initialData.bank_name || "",
+            bankNameOther: initialData.bank_name_other || "",
+            accountHolderName: initialData.account_holder_name || "",
+            accountNumber: initialData.account_number || "",
+            bankBranch: initialData.bank_branch || "",
+
+            regCertificateUrl: initialData.reg_certificate_url || "",
+            nicPassportUrl: initialData.nic_passport_url || "",
+            tourismLicenseUrl: initialData.tourism_license_url || "",
+            marketingPermission: initialData.marketing_permission || false,
+        });
+    };
+
     const handleAreaToggle = (area: string, field: any) => {
         const current = field.value || [];
         const updated = current.includes(area)
@@ -412,6 +381,60 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-4xl mx-auto pb-10">
+
+                {/* Global Edit Controls */}
+                <Card className="border-l-4 border-l-primary shadow-sm sticky top-4 z-10 bg-background">
+                    <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <Edit className="w-4 h-4 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-sm">Profile Editing</h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {isEditing ? "Make your changes and save" : "Click Edit to update your profile"}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            {!isEditing ? (
+                                <Button
+                                    type="button"
+                                    onClick={() => setIsEditing(true)}
+                                    className="gap-2"
+                                >
+                                    <Edit className="w-4 h-4" />
+                                    Edit Profile
+                                </Button>
+                            ) : (
+                                <>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleCancel}
+                                        disabled={isUpdating}
+                                        className="gap-2"
+                                    >
+                                        <X className="w-4 h-4" />
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={isUpdating}
+                                        className="gap-2"
+                                    >
+                                        {isUpdating ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <CheckCircle2 className="w-4 h-4" />
+                                        )}
+                                        Save Changes
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Section 1: About Your Business */}
                 <Card>
@@ -431,13 +454,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="businessName"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Business Name" fieldName="businessName" />
+                                        <FormLabel>Business Name</FormLabel>
                                         <FormControl>
                                             <Input
                                                 {...field}
                                                 placeholder="e.g., Adventure Paradise Tours"
-                                                disabled={!unlockedFields["businessName"]}
-                                                className={!unlockedFields["businessName"] ? "bg-muted/30 border-transparent transition-all" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="businessName" />
@@ -450,14 +472,14 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="vendorType"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Vendor Type" fieldName="vendorType" />
+                                        <FormLabel>Vendor Type</FormLabel>
                                         <Select
                                             onValueChange={field.onChange}
                                             defaultValue={field.value}
-                                            disabled={!unlockedFields["vendorType"]}
+                                            disabled={!isEditing}
                                         >
                                             <FormControl>
-                                                <SelectTrigger className={!unlockedFields["vendorType"] ? "bg-muted/30 border-transparent mt-0" : "border-primary/50 ring-1 ring-primary/20 mt-0"}>
+                                                <SelectTrigger>
                                                     <SelectValue placeholder="Select vendor type" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -480,13 +502,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     name="vendorTypeOther"
                                     render={({ field }) => (
                                         <FormItem className="col-span-2">
-                                            <EditableLabel label="Specify Vendor Type" fieldName="vendorTypeOther" />
+                                            <FormLabel>Specify Vendor Type</FormLabel>
                                             <FormControl>
                                                 <Input
                                                     {...field}
                                                     placeholder="Please specify"
-                                                    disabled={!unlockedFields["vendorTypeOther"]}
-                                                    className={!unlockedFields["vendorTypeOther"] ? "bg-muted/30 border-transparent transition-all" : "border-primary/50 ring-1 ring-primary/20"}
+                                                    disabled={!isEditing}
                                                 />
                                             </FormControl>
                                             <PendingValueIndicator fieldName="vendorTypeOther" />
@@ -500,13 +521,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="legalName"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Legal Name (Optional)" fieldName="legalName" />
+                                        <FormLabel>Legal Name (Optional)</FormLabel>
                                         <FormControl>
                                             <Input
                                                 {...field}
                                                 placeholder="Full Legal Entity Name"
-                                                disabled={!unlockedFields["legalName"]}
-                                                className={!unlockedFields["legalName"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="legalName" />
@@ -522,13 +542,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="contactPerson"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Contact Person" fieldName="contactPerson" />
+                                        <FormLabel>Contact Person</FormLabel>
                                         <FormControl>
                                             <Input
                                                 {...field}
                                                 placeholder="e.g., John Doe"
-                                                disabled={!unlockedFields["contactPerson"]}
-                                                className={!unlockedFields["contactPerson"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="contactPerson" />
@@ -556,7 +575,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 render={({ field }) => (
                                     <FormItem>
                                         <div className="flex items-center justify-between">
-                                            <EditableLabel label="Phone Number" fieldName="phoneNumber" />
+                                            <FormLabel>Phone Number</FormLabel>
                                             {initialData.phone_verified && (
                                                 <div className="flex items-center gap-1 text-[10px] text-green-600 font-bold mb-1 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
                                                     <CheckCircle2 className="w-3 h-3" />
@@ -568,8 +587,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                             <Input
                                                 {...field}
                                                 placeholder="+94 77 XXX XXXX"
-                                                disabled={!unlockedFields["phoneNumber"]}
-                                                className={!unlockedFields["phoneNumber"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="phoneNumber" />
@@ -584,8 +602,8 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                             name="operatingAreas"
                             render={({ field }) => (
                                 <FormItem>
-                                    <EditableLabel label="Operating Areas" fieldName="operatingAreas" />
-                                    <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-2 ${!unlockedFields["operatingAreas"] ? "opacity-70 pointer-events-none" : ""}`}>
+                                    <FormLabel>Operating Areas</FormLabel>
+                                    <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-2 ${!isEditing ? "opacity-70 pointer-events-none" : ""}`}>
                                         {operatingAreas.map((area) => (
                                             <button
                                                 key={area}
@@ -611,13 +629,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="operatingAreasOther"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Other Areas" fieldName="operatingAreasOther" />
+                                        <FormLabel>Other Areas</FormLabel>
                                         <FormControl>
                                             <Textarea
                                                 {...field}
                                                 placeholder="Please list other areas"
-                                                disabled={!unlockedFields["operatingAreasOther"]}
-                                                className={!unlockedFields["operatingAreasOther"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="operatingAreasOther" />
@@ -646,13 +663,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                             name="businessAddress"
                             render={({ field }) => (
                                 <FormItem>
-                                    <EditableLabel label="Business Address" fieldName="businessAddress" />
+                                    <FormLabel>Business Address</FormLabel>
                                     <FormControl>
                                         <Textarea
                                             {...field}
                                             placeholder="Enter your registered business address"
-                                            disabled={!unlockedFields["businessAddress"]}
-                                            className={!unlockedFields["businessAddress"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                            disabled={!isEditing}
                                         />
                                     </FormControl>
                                     <PendingValueIndicator fieldName="businessAddress" />
@@ -666,13 +682,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="businessRegNumber"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Business Registration Number" fieldName="businessRegNumber" />
+                                        <FormLabel>Business Registration Number</FormLabel>
                                         <FormControl>
                                             <Input
                                                 {...field}
                                                 placeholder="e.g., BR-XXXXX"
-                                                disabled={!unlockedFields["businessRegNumber"]}
-                                                className={!unlockedFields["businessRegNumber"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="businessRegNumber" />
@@ -685,13 +700,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="taxId"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Tax ID / VAT (Optional)" fieldName="taxId" />
+                                        <FormLabel>Tax ID / VAT (Optional)</FormLabel>
                                         <FormControl>
                                             <Input
                                                 {...field}
                                                 placeholder="Tax Identification Number"
-                                                disabled={!unlockedFields["taxId"]}
-                                                className={!unlockedFields["taxId"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="taxId" />
@@ -706,7 +720,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                             <h3 className="text-sm font-semibold text-foreground">Documents</h3>
                             <div className="grid gap-4">
                                 <div className="space-y-4">
-                                    <EditableLabel label="Business Registration Certificate" fieldName="regCertificateUrl" />
+                                    <FormLabel>Business Registration Certificate</FormLabel>
                                     <DocumentUploadField
                                         label=""
                                         fileType="reg_certificate"
@@ -715,11 +729,11 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                         onUploadSuccess={(url) => setDocuments(prev => ({ ...prev, regCertificate: url }))}
                                         fieldName="regCertificateUrl"
                                         PendingValueIndicator={PendingValueIndicator}
-                                        disabled={!unlockedFields["regCertificateUrl"]}
+                                        disabled={!isEditing}
                                     />
                                 </div>
                                 <div className="space-y-4">
-                                    <EditableLabel label="NIC / Passport" fieldName="nicPassportUrl" />
+                                    <FormLabel>NIC / Passport</FormLabel>
                                     <DocumentUploadField
                                         label=""
                                         fileType="nic_passport"
@@ -728,11 +742,11 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                         onUploadSuccess={(url) => setDocuments(prev => ({ ...prev, nicPassport: url }))}
                                         fieldName="nicPassportUrl"
                                         PendingValueIndicator={PendingValueIndicator}
-                                        disabled={!unlockedFields["nicPassportUrl"]}
+                                        disabled={!isEditing}
                                     />
                                 </div>
                                 <div className="space-y-4">
-                                    <EditableLabel label="Tourism License (Optional)" fieldName="tourismLicenseUrl" />
+                                    <FormLabel>Tourism License (Optional)</FormLabel>
                                     <DocumentUploadField
                                         label=""
                                         fileType="tourism_license"
@@ -741,7 +755,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                         onUploadSuccess={(url) => setDocuments(prev => ({ ...prev, tourismLicense: url }))}
                                         fieldName="tourismLicenseUrl"
                                         PendingValueIndicator={PendingValueIndicator}
-                                        disabled={!unlockedFields["tourismLicenseUrl"]}
+                                        disabled={!isEditing}
                                     />
                                 </div>
                             </div>
@@ -767,14 +781,14 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="bankName"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Bank Name" fieldName="bankName" />
+                                        <FormLabel>Bank Name</FormLabel>
                                         <Select
                                             onValueChange={field.onChange}
                                             defaultValue={field.value}
-                                            disabled={!unlockedFields["bankName"]}
+                                            disabled={!isEditing}
                                         >
                                             <FormControl>
-                                                <SelectTrigger className={!unlockedFields["bankName"] ? "bg-muted/30 border-transparent mt-0" : "border-primary/50 ring-1 ring-primary/20 mt-0"}>
+                                                <SelectTrigger>
                                                     <SelectValue placeholder="Select your bank" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -797,13 +811,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                     name="bankNameOther"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <EditableLabel label="Specify Bank Name" fieldName="bankNameOther" />
+                                            <FormLabel>Specify Bank Name</FormLabel>
                                             <FormControl>
                                                 <Input
                                                     {...field}
                                                     placeholder="Enter bank name"
-                                                    disabled={!unlockedFields["bankNameOther"]}
-                                                    className={!unlockedFields["bankNameOther"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                    disabled={!isEditing}
                                                 />
                                             </FormControl>
                                             <PendingValueIndicator fieldName="bankNameOther" />
@@ -817,13 +830,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="bankBranch"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Bank Branch" fieldName="bankBranch" />
+                                        <FormLabel>Bank Branch</FormLabel>
                                         <FormControl>
                                             <Input
                                                 {...field}
                                                 placeholder="e.g., Colombo Main"
-                                                disabled={!unlockedFields["bankBranch"]}
-                                                className={!unlockedFields["bankBranch"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="bankBranch" />
@@ -838,13 +850,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="accountHolderName"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Account Holder Name" fieldName="accountHolderName" />
+                                        <FormLabel>Account Holder Name</FormLabel>
                                         <FormControl>
                                             <Input
                                                 {...field}
                                                 placeholder="Name exactly as on bank documents"
-                                                disabled={!unlockedFields["accountHolderName"]}
-                                                className={!unlockedFields["accountHolderName"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="accountHolderName" />
@@ -857,13 +868,12 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                                 name="accountNumber"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <EditableLabel label="Account Number" fieldName="accountNumber" />
+                                        <FormLabel>Account Number</FormLabel>
                                         <FormControl>
                                             <Input
                                                 {...field}
                                                 placeholder="e.g., 000123456789"
-                                                disabled={!unlockedFields["accountNumber"]}
-                                                className={!unlockedFields["accountNumber"] ? "bg-muted/30 border-transparent" : "border-primary/50 ring-1 ring-primary/20"}
+                                                disabled={!isEditing}
                                             />
                                         </FormControl>
                                         <PendingValueIndicator fieldName="accountNumber" />
@@ -873,68 +883,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                             />
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-4 pt-4 border-t">
-                            <FormField
-                                control={form.control}
-                                name="payoutCycle"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <EditableLabel label="Payout Cycle" fieldName="payoutCycle" />
-                                        <Select
-                                            onValueChange={field.onChange}
-                                            defaultValue={field.value}
-                                            disabled={!unlockedFields["payoutCycle"]}
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger className={!unlockedFields["payoutCycle"] ? "bg-muted/30 border-transparent mt-0" : "border-primary/50 ring-1 ring-primary/20 mt-0"}>
-                                                    <SelectValue placeholder="Select payout cycle" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {payoutCycles.map((cycle) => (
-                                                    <SelectItem key={cycle.value} value={cycle.value}>
-                                                        {cycle.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <PendingValueIndicator fieldName="payoutCycle" />
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            {(form.watch("payoutCycle") === "monthly" || form.watch("payoutCycle") === "quarterly") && (
-                                <FormField
-                                    control={form.control}
-                                    name="payoutDate"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <EditableLabel label="Payout Date" fieldName="payoutDate" />
-                                            <Select
-                                                onValueChange={field.onChange}
-                                                defaultValue={field.value}
-                                                disabled={!unlockedFields["payoutDate"]}
-                                            >
-                                                <FormControl>
-                                                    <SelectTrigger className={!unlockedFields["payoutDate"] ? "bg-muted/30 border-transparent mt-0" : "border-primary/50 ring-1 ring-primary/20 mt-0"}>
-                                                        <SelectValue placeholder="Select payout date" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {payoutDates.map((date) => (
-                                                        <SelectItem key={date.value} value={date.value}>
-                                                            {date.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <PendingValueIndicator fieldName="payoutDate" />
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
-                        </div>
+
                     </CardContent>
                 </Card>
 
@@ -964,12 +913,6 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                     />
                 </div>
 
-                <div className="flex justify-end pt-4 sticky bottom-0 bg-background/80 backdrop-blur-sm p-4 border-t rounded-t-xl z-10 shadow-lg">
-                    <Button type="submit" size="lg" disabled={isUpdating} className="w-full sm:w-auto min-w-[200px]">
-                        {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Changes
-                    </Button>
-                </div>
             </form>
         </Form>
     );
