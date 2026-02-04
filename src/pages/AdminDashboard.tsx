@@ -69,6 +69,7 @@ import {
   Maximize2,
   ChevronRight,
   MoreVertical,
+  FileDown,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -91,13 +92,14 @@ import { vendorService } from "@/services/vendorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { AdminChatModal } from "@/components/admin/AdminChatModal";
-import { chatService, ChatSummary } from "@/services/chatService";
+import { chatService, ChatSummary, UpdateRequest } from "@/services/chatService";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { generateVendorPDF } from "@/utils/generateVendorPDF";
 
 // Define the shape of our frontend vendor object (mapping from backend)
 interface VendorSubmission {
@@ -169,13 +171,16 @@ const AdminDashboard = () => {
   const [actionReason, setActionReason] = useState("");
 
 
-  // Chat State
+  // Chat & Notification State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatVendor, setChatVendor] = useState<VendorSubmission | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0); // Total unread chats
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0); // Pending update requests
+  const [pendingRequests, setPendingRequests] = useState<UpdateRequest[]>([]); // Individual pending requests
   const [chatSummaries, setChatSummaries] = useState<ChatSummary[]>([]);
   const [isLoadingSummaries, setIsLoadingSummaries] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [targetRequestId, setTargetRequestId] = useState<string | null>(null);
 
   const handleCommissionChange = (serviceId: string, value: string) => {
     setCommissionValues(prev => ({ ...prev, [serviceId]: value }));
@@ -210,19 +215,29 @@ const AdminDashboard = () => {
 
   const fetchUnreadCount = async () => {
     try {
-      const res = await chatService.getUnreadCount();
-      if (res.success) {
-        setUnreadCount(res.unread_count);
+      // 1. Fetch unread chat messages
+      const chatRes = await chatService.getUnreadCount();
+      if (chatRes.success) {
+        setUnreadCount(chatRes.unread_count);
+      }
+
+      // 2. Fetch pending update requests
+      const requestsRes = await chatService.getPendingUpdateRequests();
+      if (requestsRes.success) {
+        setPendingRequestsCount(requestsRes.count || 0);
+        setPendingRequests(requestsRes.requests || []);
       }
     } catch (error) {
-      console.error("Failed to fetch admin unread count:", error);
+      console.error("Failed to fetch admin counts:", error);
     }
   };
 
   const fetchChatSummaries = async () => {
     setIsLoadingSummaries(true);
     try {
+      console.log("Fetching chat summaries...");
       const res = await chatService.getAdminChatSummary();
+      console.log("Chat summaries response:", res);
       if (res.success) {
         setChatSummaries(res.summary);
       }
@@ -403,6 +418,58 @@ const AdminDashboard = () => {
     pending: vendors.filter((v) => v.status === "pending").length,
     approved: vendors.filter((v) => v.status === "approved").length,
     rejected: vendors.filter((v) => v.status === "rejected").length,
+  };
+
+  const totalActionableCount = unreadCount + pendingRequestsCount + stats.pending;
+
+  const getPendingVendorIds = () => {
+    const ids = new Set<string>();
+    // Unread chats
+    chatSummaries.forEach(s => { if (s.unread_count > 0) ids.add(s.vendor_id); });
+    // Pending updates
+    pendingRequests.forEach(r => ids.add(r.vendor_id));
+    // New registrations
+    vendors.filter(v => v.status === "pending").forEach(v => ids.add(v.id));
+    return Array.from(ids);
+  };
+
+  const handleNextPending = () => {
+    const pendingIds = getPendingVendorIds();
+    if (pendingIds.length === 0) {
+      setIsChatOpen(false);
+      toast.success("All pending items reviewed!");
+      return;
+    }
+
+    // Find current index
+    const currentIndex = chatVendor ? pendingIds.indexOf(chatVendor.id) : -1;
+    let nextIndex = (currentIndex + 1) % pendingIds.length;
+
+    // If we've looped back to the same one and it's the only one, maybe close or just stay
+    if (nextIndex === currentIndex && pendingIds.length === 1) {
+      toast.info("This is the only pending item.");
+      return;
+    }
+
+    const nextVendorId = pendingIds[nextIndex];
+    const vendor = vendors.find(v => v.id === nextVendorId);
+
+    if (vendor) {
+      setChatVendor(vendor);
+    } else {
+      // If vendor not in main list, fetch from summary/request info
+      const summary = chatSummaries.find(s => s.vendor_id === nextVendorId);
+      const request = pendingRequests.find(r => r.vendor_id === nextVendorId);
+      setChatVendor({
+        id: nextVendorId,
+        businessName: summary?.vendor_name || request?.requested_by_name || "Unknown Vendor",
+        vendorType: "Vendor",
+        email: "",
+        contactPerson: "",
+        status: "pending",
+        submittedAt: ""
+      } as any);
+    }
   };
 
   const handleViewDetails = async (vendor: VendorSubmission) => {
@@ -623,7 +690,7 @@ const AdminDashboard = () => {
                       onClick={() => setActiveTab("support")}
                     >
                       <Bell className="w-5 h-5" />
-                      {unreadCount > 0 && (
+                      {totalActionableCount > 0 && (
                         <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
@@ -632,7 +699,12 @@ const AdminDashboard = () => {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{unreadCount > 0 ? `${unreadCount} unread messages` : "No unread messages"}</p>
+                    <div className="text-xs space-y-1">
+                      {unreadCount > 0 && <p>• {unreadCount} unread messages</p>}
+                      {pendingRequestsCount > 0 && <p>• {pendingRequestsCount} profile update requests</p>}
+                      {stats.pending > 0 && <p>• {stats.pending} new registrations</p>}
+                      {totalActionableCount === 0 && <p>No new notifications</p>}
+                    </div>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -686,10 +758,10 @@ const AdminDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="support" className="gap-2">
               <MessageCircle className="w-4 h-4" />
-              Support
-              {unreadCount > 0 && (
+              Notifications
+              {totalActionableCount > 0 && (
                 <Badge className="ml-1 bg-red-500 hover:bg-red-600 px-1.5 py-0 min-w-[1.25rem] h-5">
-                  {unreadCount}
+                  {totalActionableCount}
                 </Badge>
               )}
             </TabsTrigger>
@@ -879,6 +951,59 @@ const AdminDashboard = () => {
                                 <FileText className="mr-2 h-4 w-4" />
                                 Admin Notes
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    // Fetch full vendor details first
+                                    const response = await vendorService.getVendor(vendor.id);
+                                    if (response.success) {
+                                      const fullVendor = response.vendor;
+                                      const services = response.services || [];
+                                      const detailedVendor = {
+                                        ...vendor,
+                                        services: services.map((s: any) => ({
+                                          id: s.id,
+                                          serviceName: s.service_name,
+                                          serviceCategory: s.service_category,
+                                          shortDescription: s.short_description,
+                                          durationValue: s.duration_value,
+                                          durationUnit: s.duration_unit,
+                                          groupSizeMin: s.group_size_min,
+                                          groupSizeMax: s.group_size_max,
+                                          retailPrice: s.retail_price,
+                                          currency: s.currency,
+                                          imageUrls: s.image_urls || [],
+                                          languagesOffered: s.languages_offered || [],
+                                          operatingDays: s.operating_days || [],
+                                          whatsIncluded: s.whats_included || '',
+                                          whatsNotIncluded: s.whats_not_included || '',
+                                          cancellationPolicy: s.cancellation_policy || '',
+                                          advanceBooking: s.advance_booking || 'N/A',
+                                          operatingHoursFrom: s.operating_hours_from,
+                                          operatingHoursFromPeriod: s.operating_hours_from_period,
+                                          operatingHoursTo: s.operating_hours_to,
+                                          operatingHoursToPeriod: s.operating_hours_to_period,
+                                          status: s.status
+                                        })),
+                                        pricing: services.map((s: any) => ({
+                                          currency: s.currency,
+                                          retailPrice: s.retail_price,
+                                          netPrice: (s.retail_price * 0.85).toFixed(2),
+                                          commission: s.commission_percent || 0,
+                                          dailyCapacity: s.daily_capacity
+                                        })),
+                                      };
+                                      generateVendorPDF(detailedVendor as any);
+                                      toast.success('PDF generated successfully!');
+                                    }
+                                  } catch (error) {
+                                    toast.error('Failed to generate PDF');
+                                  }
+                                }}
+                              >
+                                <FileDown className="mr-2 h-4 w-4" />
+                                Generate Document
+                              </DropdownMenuItem>
                               <Separator className="my-1" />
                               {vendor.status !== "approved" && (
                                 <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "approved")}>
@@ -985,79 +1110,195 @@ const AdminDashboard = () => {
             <Card className="glass-card border-0">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="w-5 h-5 text-primary" />
-                  Vendor Messages
+                  <Bell className="w-5 h-5 text-primary" />
+                  Notifications Center
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                {isLoadingSummaries ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-                    <p className="text-muted-foreground">Loading conversations...</p>
-                  </div>
-                ) : chatSummaries.length === 0 ? (
-                  <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted">
-                    <MessageCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                    <p className="text-muted-foreground">No conversations yet.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {chatSummaries.map((chat) => (
-                      <div
-                        key={chat.vendor_id}
-                        onClick={() => {
-                          const vendor = vendors.find(v => v.id === chat.vendor_id);
-                          setChatVendor(vendor || { id: chat.vendor_id, businessName: chat.vendor_name, vendorType: "Vendor" } as any);
-                          setIsChatOpen(true);
-                        }}
-                        className={`
-                          group flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all
-                          ${chat.unread_count > 0 ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/50"}
-                        `}
-                      >
-                        <div className="relative">
-                          <Avatar className="w-12 h-12 border-2 border-background">
-                            <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                              {chat.vendor_name.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          {chat.unread_count > 0 && (
-                            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-background text-[10px] font-bold text-white flex items-center justify-center">
-                                {chat.unread_count}
-                              </span>
-                            </span>
-                          )}
-                        </div>
+              <CardContent className="space-y-6">
+                <Tabs defaultValue="updates" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3 mb-6">
+                    <TabsTrigger value="updates" className="gap-2">
+                      <FileText className="w-4 h-4" />
+                      Updates
+                      {pendingRequestsCount > 0 && (
+                        <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-700 px-1.5 py-0">
+                          {pendingRequestsCount}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="registrations" className="gap-2">
+                      <UserPlus className="w-4 h-4" />
+                      Registrations
+                      {stats.pending > 0 && (
+                        <Badge variant="secondary" className="ml-1 bg-yellow-100 text-yellow-700 px-1.5 py-0">
+                          {stats.pending}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="chats" className="gap-2">
+                      <MessageCircle className="w-4 h-4" />
+                      Chats
+                      {unreadCount > 0 && (
+                        <Badge variant="destructive" className="ml-1 px-1.5 py-0">
+                          {unreadCount}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <h4 className="font-semibold truncate group-hover:text-primary transition-colors">
-                              {chat.vendor_name}
-                            </h4>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(chat.latest_message.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                            {chat.latest_message.sender === "admin" ? "You: " : ""}
-                            {chat.latest_message.message}
-                          </p>
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </Button>
+                  <TabsContent value="updates" className="space-y-4">
+                    {pendingRequests.length === 0 ? (
+                      <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted">
+                        <FileText className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                        <p className="text-muted-foreground">No pending profile updates.</p>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    ) : (
+                      <div className="grid gap-3">
+                        {pendingRequests.map((req) => (
+                          <div
+                            key={req.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 hover:bg-blue-500/10 cursor-pointer transition-all gap-4"
+                            onClick={() => {
+                              const vendor = vendors.find(v => v.id === req.vendor_id);
+                              setChatVendor(vendor || { id: req.vendor_id, businessName: req.requested_by_name, vendorType: "Vendor" } as any);
+                              setTargetRequestId(req.id);
+                              setIsChatOpen(true);
+                            }}
+                          >
+                            <div className="flex items-start gap-4 flex-1 min-w-0">
+                              <Avatar className="w-10 h-10 border-2 border-background flex-shrink-0">
+                                <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
+                                  {req.requested_by_name.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-foreground break-words">Update: {req.requested_by_name}</p>
+                                <p className="text-sm text-muted-foreground whitespace-normal break-words mt-1">
+                                  {req.changed_fields.length} change{req.changed_fields.length !== 1 ? 's' : ''} requested across profile fields.
+                                </p>
+                                <p className="text-[10px] text-muted-foreground/60 mt-1 uppercase tracking-tighter">
+                                  ID: {req.id.substring(0, 8)}...
+                                </p>
+                              </div>
+                            </div>
+                            <Button variant="outline" size="sm" className="gap-1 self-end sm:self-center shrink-0">
+                              Review <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="registrations" className="space-y-4">
+                    {vendors.filter(v => v.status === "pending").length === 0 ? (
+                      <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted">
+                        <UserPlus className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                        <p className="text-muted-foreground">No pending registrations.</p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-3">
+                        {vendors.filter(v => v.status === "pending").map((vendor) => (
+                          <div
+                            key={vendor.id}
+                            onClick={() => handleViewDetails(vendor)}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-yellow-500/5 border border-yellow-500/20 hover:bg-yellow-500/10 cursor-pointer transition-all gap-4"
+                          >
+                            <div className="flex items-start gap-4 flex-1 min-w-0">
+                              <Avatar className="w-10 h-10 border-2 border-background flex-shrink-0">
+                                <AvatarFallback className="bg-yellow-100 text-yellow-700 font-medium">
+                                  {vendor.businessName.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-foreground break-words">{vendor.businessName}</p>
+                                <p className="text-sm text-muted-foreground whitespace-normal break-words mt-1">
+                                  New registration waiting for approval.
+                                </p>
+                                <p className="text-[10px] text-muted-foreground/60 mt-1">
+                                  Submitted: {vendor.submittedAt}
+                                </p>
+                              </div>
+                            </div>
+                            <Button variant="outline" size="sm" className="gap-1 self-end sm:self-center shrink-0">
+                              View Submission <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="chats" className="space-y-4">
+                    {isLoadingSummaries ? (
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                        <p className="text-muted-foreground">Loading conversations...</p>
+                      </div>
+                    ) : chatSummaries.filter(chat => chat.unread_count > 0).length === 0 ? (
+                      <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted">
+                        <MessageCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                        <p className="text-muted-foreground">No unread messages.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {chatSummaries.filter(chat => chat.unread_count > 0).map((chat) => (
+                          <div
+                            key={chat.vendor_id}
+                            onClick={() => {
+                              const vendor = vendors.find(v => v.id === chat.vendor_id);
+                              setChatVendor(vendor || { id: chat.vendor_id, businessName: chat.vendor_name, vendorType: "Vendor" } as any);
+                              setIsChatOpen(true);
+                            }}
+                            className={`
+                              group flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl cursor-pointer transition-all border
+                              ${chat.unread_count > 0 ? "bg-primary/5 hover:bg-primary/10 border-primary/20" : "hover:bg-muted/50 border-transparent"}
+                            `}
+                          >
+                            <div className="flex items-start gap-4 flex-1 min-w-0">
+                              <div className="relative flex-shrink-0">
+                                <Avatar className="w-12 h-12 border-2 border-background">
+                                  <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                                    {chat.vendor_name.substring(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {chat.unread_count > 0 && (
+                                  <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-background text-[10px] font-bold text-white flex items-center justify-center">
+                                      {chat.unread_count}
+                                    </span>
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <h4 className="font-bold text-foreground break-words group-hover:text-primary transition-colors">
+                                    {chat.vendor_name}
+                                  </h4>
+                                  <span className="text-[10px] text-muted-foreground shrink-0 uppercase">
+                                    {new Date(chat.latest_message.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <p className={`text-sm whitespace-normal break-words leading-tight ${chat.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                                  {chat.latest_message.sender === "admin" ? <span className="opacity-60 italic">You: </span> : ""}
+                                  {chat.latest_message.message}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity self-end sm:self-center shrink-0 hidden sm:flex"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1121,7 +1362,7 @@ const AdminDashboard = () => {
 
       {/* Vendor Detail Modal */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           {selectedVendor && (
             <>
               <DialogHeader>
@@ -1139,7 +1380,28 @@ const AdminDashboard = () => {
                       </DialogDescription>
                     </div>
                   </div>
-                  {getStatusBadge(selectedVendor.status)}
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(selectedVendor.status)}
+                    <DropdownMenu modal={false}>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            generateVendorPDF(selectedVendor as any);
+                            toast.success('PDF generated successfully!');
+                          }}
+                          className="gap-2"
+                        >
+                          <FileDown className="w-4 h-4" />
+                          Generate Document
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </DialogHeader>
 
@@ -1164,7 +1426,7 @@ const AdminDashboard = () => {
                 </TabsList>
 
                 {/* Overview Tab */}
-                <TabsContent value="overview" className="space-y-4 mt-4">
+                <TabsContent value="overview" className="space-y-4 mt-4 overflow-x-hidden">
                   <div className="grid md:grid-cols-2 gap-4">
                     {/* Contact Info */}
                     <Card>
@@ -1327,7 +1589,7 @@ const AdminDashboard = () => {
                 </TabsContent>
 
                 {/* Services Tab */}
-                <TabsContent value="services" className="space-y-4 mt-4">
+                <TabsContent value="services" className="space-y-4 mt-4 overflow-x-hidden">
                   {selectedVendor.services.map((service: any, index) => (
                     <Card key={index} className={service.status === 'freeze' ? 'opacity-75 border-amber-200 bg-amber-50' : ''}>
                       <CardHeader className="pb-3">
@@ -1368,7 +1630,7 @@ const AdminDashboard = () => {
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4 text-sm">
-                        <p className="text-muted-foreground">{service.shortDescription}</p>
+                        <p className="text-muted-foreground whitespace-pre-wrap break-all">{service.shortDescription}</p>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div>
@@ -1397,14 +1659,14 @@ const AdminDashboard = () => {
 
                         <Separator />
 
-                        <div className="grid md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">What's Included</p>
-                            <p className="text-green-600">{service.whatsIncluded}</p>
+                            <p className="text-green-600 whitespace-pre-wrap break-all">{service.whatsIncluded}</p>
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">What's Not Included</p>
-                            <p className="text-red-500">{service.whatsNotIncluded}</p>
+                            <p className="text-red-500 whitespace-pre-wrap break-all">{service.whatsNotIncluded}</p>
                           </div>
                         </div>
 
@@ -1457,7 +1719,7 @@ const AdminDashboard = () => {
 
                         <div>
                           <p className="text-xs text-muted-foreground mb-1">Cancellation Policy</p>
-                          <p>{service.cancellationPolicy}</p>
+                          <p className="whitespace-pre-wrap break-all">{service.cancellationPolicy}</p>
                         </div>
                       </CardContent>
 
@@ -1486,7 +1748,7 @@ const AdminDashboard = () => {
                 </TabsContent>
 
                 {/* Documents Tab */}
-                <TabsContent value="documents" className="space-y-4 mt-4">
+                <TabsContent value="documents" className="space-y-4 mt-4 overflow-x-hidden">
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center gap-2">
@@ -1635,7 +1897,7 @@ const AdminDashboard = () => {
                 </TabsContent>
 
                 {/* Payment Tab */}
-                <TabsContent value="payment" className="space-y-4 mt-4">
+                <TabsContent value="payment" className="space-y-4 mt-4 overflow-x-hidden">
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center gap-2">
@@ -1699,63 +1961,65 @@ const AdminDashboard = () => {
                       <CardTitle className="text-base">Commission Structure</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Service</TableHead>
-                            <TableHead>Retail Price</TableHead>
-                            <TableHead>Commission</TableHead>
-                            <TableHead>Net to Vendor</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedVendor.services.map((service, index) => (
-                            <TableRow key={index}>
-                              <TableCell>{service.serviceName}</TableCell>
-                              <TableCell>
-                                {selectedVendor.pricing[index]?.currency}{" "}
-                                {selectedVendor.pricing[index]?.retailPrice}
-                              </TableCell>
-                              <TableCell>
-                                {isAdmin ? (
-                                  <div className="flex items-center gap-2">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      className="w-20 h-8"
-                                      placeholder={String(selectedVendor.pricing[index]?.commission || 0)}
-                                      value={commissionValues[service.id] !== undefined ? commissionValues[service.id] : (selectedVendor.pricing[index]?.commission || 0)}
-                                      onChange={(e) => handleCommissionChange(service.id, e.target.value)}
-                                    />
-                                    <span className="text-sm text-muted-foreground">%</span>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-8 w-8 p-0"
-                                      disabled={updatingServiceId === service.id}
-                                      onClick={() => handleUpdateCommission(service.id)}
-                                    >
-                                      {updatingServiceId === service.id ? (
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                      ) : (
-                                        <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <span>{selectedVendor.pricing[index]?.commission || 0}%</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="font-medium text-green-600">
-                                {selectedVendor.pricing[index]?.currency}{" "}
-                                {selectedVendor.pricing[index]?.netPrice}
-                              </TableCell>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Service</TableHead>
+                              <TableHead>Retail Price</TableHead>
+                              <TableHead>Commission</TableHead>
+                              <TableHead>Net to Vendor</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedVendor.services.map((service, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{service.serviceName}</TableCell>
+                                <TableCell>
+                                  {selectedVendor.pricing[index]?.currency}{" "}
+                                  {selectedVendor.pricing[index]?.retailPrice}
+                                </TableCell>
+                                <TableCell>
+                                  {isAdmin ? (
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        className="w-20 h-8"
+                                        placeholder={String(selectedVendor.pricing[index]?.commission || 0)}
+                                        value={commissionValues[service.id] !== undefined ? commissionValues[service.id] : (selectedVendor.pricing[index]?.commission || 0)}
+                                        onChange={(e) => handleCommissionChange(service.id, e.target.value)}
+                                      />
+                                      <span className="text-sm text-muted-foreground">%</span>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 w-8 p-0"
+                                        disabled={updatingServiceId === service.id}
+                                        onClick={() => handleUpdateCommission(service.id)}
+                                      >
+                                        {updatingServiceId === service.id ? (
+                                          <Loader2 className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                          <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                        )}
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <span>{selectedVendor.pricing[index]?.commission || 0}%</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="font-medium text-green-600">
+                                  {selectedVendor.pricing[index]?.currency}{" "}
+                                  {selectedVendor.pricing[index]?.netPrice}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -1976,7 +2240,6 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Vendor Chat Modal */}
       <AdminChatModal
         isOpen={isChatOpen}
         onClose={() => {
@@ -1989,6 +2252,11 @@ const AdminDashboard = () => {
         vendorId={chatVendor?.id || null}
         businessName={chatVendor?.businessName || "Vendor"}
         vendorType={chatVendor?.vendorType || "Unknown"}
+        logoUrl={chatVendor?.logoUrl}
+        onAction={fetchUnreadCount}
+        onNextPending={getPendingVendorIds().length > 0 ? handleNextPending : undefined}
+        hasMorePending={getPendingVendorIds().length > 1}
+        targetRequestId={targetRequestId || undefined}
       />
       {/* Admin Notes Dialog */}
       <Dialog
