@@ -308,7 +308,7 @@ const VendorDashboard = () => {
           {activeTab === "calendar" && <CalendarView services={services} />}
           {activeTab === "bookings" && <BookingsTable />}
           {activeTab === "earnings" && <EarningsOverview />}
-          {activeTab === "support" && <SupportChatTab />}
+          {activeTab === "support" && <SupportChatTab vendorId={fullVendorData?.id} />}
           {activeTab === "profile" && fullVendorData && (
             <div className="max-w-4xl mx-auto">
               <ProfileForm

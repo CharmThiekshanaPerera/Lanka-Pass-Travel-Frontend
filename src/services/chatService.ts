@@ -247,8 +247,7 @@ class ChatService {
             accountHolderName: 'Account Holder Name',
             accountNumber: 'Account Number',
             bankBranch: 'Bank Branch',
-            payoutCycle: 'Payout Cycle',
-            payoutDate: 'Payout Date',
+
             // Service fields
             serviceName: 'Service Name',
             serviceCategory: 'Category',
@@ -305,8 +304,7 @@ class ChatService {
             accountHolderName: 'account_holder_name',
             accountNumber: 'account_number',
             bankBranch: 'bank_branch',
-            payoutCycle: 'payout_cycle',
-            payoutDate: 'payout_date',
+
             regCertificateUrl: 'reg_certificate_url',
             nicPassportUrl: 'nic_passport_url',
             tourismLicenseUrl: 'tourism_license_url',

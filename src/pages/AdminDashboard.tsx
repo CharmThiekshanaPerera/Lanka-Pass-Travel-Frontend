@@ -110,9 +110,7 @@ interface VendorSubmission {
   accountHolderName: string;
   accountNumber: string;
   bankBranch: string;
-  payoutFrequency: string; // Not in current backend, default or map
-  payoutCycle?: string;
-  payoutDate?: string;
+
   phoneVerified?: boolean;
   documents: {
     businessRegistration: string;
@@ -239,9 +237,7 @@ const AdminDashboard = () => {
           accountHolderName: v.account_holder_name || "",
           accountNumber: v.account_number || "",
           bankBranch: v.bank_branch || "",
-          payoutFrequency: "monthly",
-          payoutCycle: v.payout_cycle,
-          payoutDate: v.payout_date,
+
           phoneVerified: v.phone_verified || false,
           documents: {
             businessRegistration: v.reg_certificate_url,
