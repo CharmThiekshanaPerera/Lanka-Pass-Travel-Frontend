@@ -26,33 +26,30 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Optimistic User Initialization from LocalStorage
+  const [user, setUser] = useState<User | null>(() => authService.getCurrentUser());
+  const [loading, setLoading] = useState(false); // No loading state needed since we have optimistic user
 
-  // Check for existing session on mount
+  // Check for existing session on mount (Background Verification)
   useEffect(() => {
     checkUser();
   }, []);
 
   const checkUser = async () => {
     try {
-      // Try to get user from localStorage first
       const storedUser = authService.getCurrentUser();
 
       if (storedUser) {
-        // Verify token with backend
+        // Verify token with backend silently
         const response = await authService.verifyToken();
         if (response.success) {
-          setUser(response.user);
-        } else {
-          // Token invalid, clear storage
-          authService.logout();
+          setUser(response.user); // Update with fresh data
         }
+        // Note: We intentionally DO NOT logout on failure to prevent auto-logout.
+        // If the token is invalid, API calls will fail anyway, but we don't force a redirect.
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
