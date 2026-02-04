@@ -388,6 +388,14 @@ const ServicesList = ({ services: initialServices, onRefresh }: { services: any[
         }
       } else {
         response = await vendorService.createService(values);
+
+        if (response.pending_approval) {
+          toast.success(response.message || "New service request submitted for approval. You will be notified once it is reviewed.");
+          setIsAdding(false);
+          if (onRefresh) onRefresh();
+          return;
+        }
+
         if (response.success) {
           toast.success("Service created successfully");
           setIsAdding(false);

@@ -134,6 +134,7 @@ const MediaGallery = ({ vendorId }: MediaGalleryProps) => {
     const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
     const [activeTab, setActiveTab] = useState("all");
     const [isLoading, setIsLoading] = useState(true);
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [identityUrls, setIdentityUrls] = useState({
         logo: "",
         cover: ""
@@ -171,8 +172,8 @@ const MediaGallery = ({ vendorId }: MediaGalleryProps) => {
                         uploadedAt: new Date(v.created_at).toLocaleDateString()
                     });
                 }
-                if (v.gallery_images && Array.isArray(v.gallery_images)) {
-                    v.gallery_images.forEach((url: string, index: number) => {
+                if (v.gallery_urls && Array.isArray(v.gallery_urls)) {
+                    v.gallery_urls.forEach((url: string, index: number) => {
                         items.push({
                             id: `gallery-${index}`,
                             url: url,
@@ -212,26 +213,43 @@ const MediaGallery = ({ vendorId }: MediaGalleryProps) => {
         return true;
     });
 
-    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
-        if (!files) return;
+        if (!files || !vendorId) return;
 
-        // TODO: Implement actual file upload to backend/storage
-        Array.from(files).forEach(file => {
-            const newItem: MediaItem = {
-                id: Math.random().toString(36).substr(2, 9),
-                url: URL.createObjectURL(file),
-                type: file.type.startsWith("image/") ? "image" : "video",
-                name: file.name,
-                size: (file.size / 1024).toFixed(2) + " KB",
-                uploadedAt: new Date().toLocaleDateString()
-            };
-            setMediaItems(prev => [...prev, newItem]);
+        const uploadPromises = Array.from(files).map(async (file) => {
+            try {
+                const res = await vendorService.uploadFile(file, vendorId, 'gallery');
+                if (res.success) {
+                    toast.success(`${file.name} uploaded successfully`);
+                    return true;
+                }
+                return false;
+            } catch (error: any) {
+                toast.error(`Failed to upload ${file.name}: ${error.message}`);
+                return false;
+            }
         });
+
+        await Promise.all(uploadPromises);
+        fetchMedia(); // Refresh list
     };
 
-    const handleDelete = (id: string) => {
-        setMediaItems(prev => prev.filter(item => item.id !== id));
+    const handleDelete = async (item: MediaItem) => {
+        if (!vendorId) return;
+
+        setIsDeleting(item.id);
+        try {
+            const res = await vendorService.deleteVendorFile(vendorId, item.url, 'gallery');
+            if (res.success) {
+                toast.success("Image removed from gallery");
+                fetchMedia();
+            }
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete image");
+        } finally {
+            setIsDeleting(null);
+        }
     };
 
     return (
@@ -292,8 +310,18 @@ const MediaGallery = ({ vendorId }: MediaGalleryProps) => {
                                         <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:text-white" onClick={() => setSelectedImage(item)}>
                                             <Eye className="w-4 h-4" />
                                         </Button>
-                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:text-destructive" onClick={() => handleDelete(item.id)}>
-                                            <Trash2 className="w-4 h-4" />
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 text-white hover:text-destructive"
+                                            onClick={() => handleDelete(item)}
+                                            disabled={isDeleting === item.id}
+                                        >
+                                            {isDeleting === item.id ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="w-4 h-4" />
+                                            )}
                                         </Button>
                                     </div>
                                 </div>
