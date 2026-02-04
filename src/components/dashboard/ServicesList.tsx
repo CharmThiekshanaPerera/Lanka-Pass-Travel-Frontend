@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Eye, MoreVertical, Star, MapPin, Clock, Users, ChevronLeft, ChevronRight, LayoutGrid, Info, Tag, FileText, Image as ImageIcon, Loader2, Upload, AlertCircle, Calendar, X, Package, Edit2, Lock } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, MoreVertical, Star, MapPin, Clock, Users, ChevronLeft, ChevronRight, LayoutGrid, Info, Tag, FileText, Image as ImageIcon, Loader2, Upload, AlertCircle, Calendar, X, Package, Edit2, Lock, CheckCircle2, Ban } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -57,7 +57,7 @@ const serviceCategories = [
   "Transport",
   "Activity",
   "Combo Package",
-  "Merchant Discount",
+  "Merchant",
   "Other",
 ];
 
@@ -116,13 +116,13 @@ const serviceSchema = z.object({
   whatsNotIncluded: z.string().optional(),
   retailPrice: z.coerce.number().min(0, "Price must be positive"),
   currency: z.string().default("LKR"),
-  durationValue: z.coerce.number().min(1, "Duration is required"),
+  durationValue: z.coerce.number().optional().default(1),
   durationUnit: z.string().default("hours"),
   languagesOffered: z.array(z.string()).optional(),
   languagesOther: z.string().optional(),
-  groupSizeMin: z.coerce.number().min(1, "Minimum capacity is required").optional(),
-  groupSizeMax: z.coerce.number().min(1, "Maximum capacity is required"),
-  dailyCapacity: z.coerce.number().min(1, "Daily capacity is required").optional(),
+  groupSizeMin: z.coerce.number().optional().default(1),
+  groupSizeMax: z.coerce.number().optional().default(1),
+  dailyCapacity: z.coerce.number().optional().default(1),
   operatingDays: z.array(z.string()).optional(),
   locationsCovered: z.array(z.string()).optional(),
   advanceBooking: z.string().optional(),
@@ -145,6 +145,27 @@ const serviceSchema = z.object({
     time: z.string(),
     capacity: z.coerce.number().min(1)
   })).optional().default([]),
+  discountType: z.string().optional(),
+  percentageOff: z.coerce.number().optional(),
+  amountOff: z.coerce.number().optional(),
+  promotions: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.serviceCategory !== "Merchant") {
+    if ((data.durationValue || 0) < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Duration is required",
+        path: ["durationValue"],
+      });
+    }
+    if ((data.groupSizeMax || 0) < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Maximum capacity is required",
+        path: ["groupSizeMax"],
+      });
+    }
+  }
 });
 
 type ServiceFormValues = z.infer<typeof serviceSchema>;
@@ -152,11 +173,17 @@ type ServiceFormValues = z.infer<typeof serviceSchema>;
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "active":
-      return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">Active</Badge>;
+      return <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">Active</Badge>;
+    case "approved":
+      return <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20">Approved</Badge>;
+    case "pending":
+      return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-500/20">Pending Review</Badge>;
+    case "freeze":
+      return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/20">Frozen</Badge>;
+    case "rejected":
+      return <Badge variant="outline" className="bg-red-500/10 text-red-700 border-red-500/20">Rejected</Badge>;
     case "draft":
-      return <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200">Draft</Badge>;
-    case "paused":
-      return <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50/50">Paused</Badge>;
+      return <Badge variant="outline" className="bg-slate-500/10 text-slate-700 border-slate-500/20">Draft</Badge>;
     default:
       return <Badge variant="secondary">{status}</Badge>;
   }
@@ -272,6 +299,10 @@ const ServicesList = ({ services: initialServices, onRefresh }: { services: any[
       blackoutWeekends: false,
       imageUrls: [],
       serviceTimeSlots: [],
+      discountType: "",
+      percentageOff: 0,
+      amountOff: 0,
+      promotions: "",
     },
   });
 
@@ -315,6 +346,10 @@ const ServicesList = ({ services: initialServices, onRefresh }: { services: any[
       blackoutWeekends: false,
       imageUrls: [],
       serviceTimeSlots: [],
+      discountType: "",
+      percentageOff: 0,
+      amountOff: 0,
+      promotions: "",
     });
     setEditingService(null);
     setSelectedFiles([]);
@@ -362,6 +397,10 @@ const ServicesList = ({ services: initialServices, onRefresh }: { services: any[
       blackoutWeekends: service.blackout_weekends || service.blackoutWeekends || false,
       imageUrls: service.image_urls || service.imageUrls || [],
       serviceTimeSlots: service.service_time_slots || service.serviceTimeSlots || [],
+      discountType: service.discount_type || service.discountType || "",
+      percentageOff: service.percentage_off || service.percentageOff || 0,
+      amountOff: service.amount_off || service.amountOff || 0,
+      promotions: service.promotions || service.promotions || "",
     });
     setPreviews(service.image_urls || service.imageUrls || []);
     setSelectedFiles([]);
@@ -424,6 +463,19 @@ const ServicesList = ({ services: initialServices, onRefresh }: { services: any[
       setIsSaving(false);
     }
   }
+
+  const handleStatusChange = async (serviceId: string, status: string) => {
+    try {
+      setIsSaving(true);
+      await vendorService.updateServiceStatus(serviceId, status);
+      toast.success(`Service status updated to ${status}`);
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update service status");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this service?")) return;
@@ -536,58 +588,98 @@ const ServicesList = ({ services: initialServices, onRefresh }: { services: any[
                   </p>
 
                   <div className="flex items-center justify-between pt-4 border-t border-border/50 mt-auto">
-                    <Dialog open={editingService?.id === service.id} onOpenChange={(open) => !open && setEditingService(null)}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2 rounded-lg hover:bg-primary hover:text-white transition-all duration-300 border-primary/20 text-primary" onClick={() => onEditOpen(service)}>
-                          <Eye className="h-4 w-4" />
-                          View Details
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl">
-                        <div className="sticky top-0 bg-background/95 backdrop-blur-md z-30 p-6 border-b flex items-center justify-between">
-                          <div>
-                            <DialogTitle className="text-2xl font-bold">{name}</DialogTitle>
-                            <DialogDescription>Full details and configuration for this service</DialogDescription>
+                    <div className="flex flex-wrap gap-2">
+                      <Dialog open={editingService?.id === service.id} onOpenChange={(open) => !open && setEditingService(null)}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-2 rounded-lg hover:bg-primary hover:text-white transition-all duration-300 border-primary/20 text-primary" onClick={() => onEditOpen(service)}>
+                            <Eye className="h-4 w-4" />
+                            Details
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl">
+                          <div className="sticky top-0 bg-background/95 backdrop-blur-md z-30 p-6 border-b flex items-center justify-between">
+                            <div>
+                              <DialogTitle className="text-2xl font-bold">{name}</DialogTitle>
+                              <DialogDescription>Full details and configuration for this service</DialogDescription>
+                            </div>
+                            <div className="flex gap-2 mr-6">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => handleDelete(service.id)}
+                                disabled={isDeleting}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                                Delete
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="gap-2 shadow-lg shadow-primary/20"
+                                onClick={form.handleSubmit(onSubmit)}
+                                disabled={isSaving}
+                              >
+                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit className="h-4 w-4" />}
+                                Save Changes
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex gap-2 mr-6">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2"
-                              onClick={() => handleDelete(service.id)}
-                              disabled={isDeleting}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                              Delete
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="gap-2 shadow-lg shadow-primary/20"
-                              onClick={form.handleSubmit(onSubmit)}
-                              disabled={isSaving}
-                            >
-                              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit className="h-4 w-4" />}
-                              Save Changes
-                            </Button>
-                          </div>
-                        </div>
 
-                        <div className="p-8">
-                          <ServiceForm
-                            form={form}
-                            onSubmit={onSubmit}
-                            isSaving={isSaving}
-                            editingService={editingService}
-                            slotFields={slotFields}
-                            appendSlot={appendSlot}
-                            removeSlot={removeSlot}
-                            previews={previews}
-                            setPreviews={setPreviews}
-                            setSelectedFiles={setSelectedFiles}
-                          />
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                          <div className="p-8">
+                            <ServiceForm
+                              form={form}
+                              onSubmit={onSubmit}
+                              isSaving={isSaving}
+                              editingService={editingService}
+                              slotFields={slotFields}
+                              appendSlot={appendSlot}
+                              removeSlot={removeSlot}
+                              previews={previews}
+                              setPreviews={setPreviews}
+                              setSelectedFiles={setSelectedFiles}
+                            />
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+
+                      {service.status === "approved" && (
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white rounded-lg gap-1.5"
+                          onClick={() => handleStatusChange(service.id, "active")}
+                          disabled={isSaving}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Activate
+                        </Button>
+                      )}
+
+                      {service.status === "active" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-amber-600 border-amber-200 hover:bg-amber-50 rounded-lg gap-1.5"
+                          onClick={() => handleStatusChange(service.id, "freeze")}
+                          disabled={isSaving}
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                          Freeze
+                        </Button>
+                      )}
+
+                      {service.status === "freeze" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-green-600 border-green-200 hover:bg-green-50 rounded-lg gap-1.5"
+                          onClick={() => handleStatusChange(service.id, "active")}
+                          disabled={isSaving}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Resume
+                        </Button>
+                      )}
+                    </div>
 
                     <div className="flex flex-col items-end">
                       <p className="text-lg font-black text-foreground">
@@ -796,7 +888,9 @@ const ServiceForm = ({
             <TabsTrigger value="basics" className="flex-1 min-w-[100px]">Basics</TabsTrigger>
             <TabsTrigger value="availability" className="flex-1 min-w-[100px]">Availability</TabsTrigger>
             <TabsTrigger value="slots" className="flex-1 min-w-[100px]">Time Slots</TabsTrigger>
-            <TabsTrigger value="pricing" className="flex-1 min-w-[100px]">Pricing</TabsTrigger>
+            <TabsTrigger value="pricing" className="flex-1 min-w-[100px]">
+              {watchCategory === "Merchant" ? "Discount" : "Pricing"}
+            </TabsTrigger>
             <TabsTrigger value="media" className="flex-1 min-w-[100px]">Media</TabsTrigger>
             <TabsTrigger value="policies" className="flex-1 min-w-[100px]">Policies</TabsTrigger>
           </TabsList>
@@ -954,7 +1048,12 @@ const ServiceForm = ({
                     <FormItem>
                       <FormLabel>Duration</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" placeholder="4" />
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder="4"
+                          disabled={watchCategory === "Merchant"}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -968,7 +1067,7 @@ const ServiceForm = ({
                       <FormLabel>Unit</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger disabled={watchCategory === "Merchant"}>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
@@ -1005,7 +1104,12 @@ const ServiceForm = ({
                   <FormItem>
                     <FormLabel>Min Group Size</FormLabel>
                     <FormControl>
-                      <Input {...field} type="number" placeholder="1" />
+                      <Input
+                        {...field}
+                        type="number"
+                        placeholder="1"
+                        disabled={watchCategory === "Merchant"}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1018,7 +1122,12 @@ const ServiceForm = ({
                   <FormItem>
                     <FormLabel>Max Group Size</FormLabel>
                     <FormControl>
-                      <Input {...field} type="number" placeholder="12" />
+                      <Input
+                        {...field}
+                        type="number"
+                        placeholder="12"
+                        disabled={watchCategory === "Merchant"}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1120,7 +1229,7 @@ const ServiceForm = ({
                       <FormControl>
                         <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
-                      <FormLabel className="font-normal">Exclude Public Holidays</FormLabel>
+                      <FormLabel className="font-normal">Block Public Holidays</FormLabel>
                     </FormItem>
                   )}
                 />
@@ -1216,46 +1325,119 @@ const ServiceForm = ({
           </TabsContent>
 
           <TabsContent value="pricing" className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-            <div className="grid md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="currency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Currency <span className="text-destructive">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || "LKR"}>
+            {watchCategory === "Merchant" ? (
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="discountType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Discount Type <span className="text-destructive">*</span></FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select discount type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Percentage">Percentage Off</SelectItem>
+                          <SelectItem value="Amount">Flat Amount Off</SelectItem>
+                          <SelectItem value="Promotions">Special Promotions / Bundles</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {form.watch("discountType") === "Percentage" && (
+                  <FormField
+                    control={form.control}
+                    name="percentageOff"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Percentage Off (%)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" placeholder="e.g., 15" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {form.watch("discountType") === "Amount" && (
+                  <FormField
+                    control={form.control}
+                    name="amountOff"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Amount Off ({form.watch("currency") || "LKR"})</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" placeholder="e.g., 500" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="promotions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Promotion Description</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
+                        <Textarea {...field} placeholder="Describe the discount or promotion details" rows={3} />
                       </FormControl>
-                      <SelectContent>
-                        {currencies.map((curr) => (
-                          <SelectItem key={curr.code} value={curr.code}>{curr.code} - {curr.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="retailPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Retail Price <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-sm text-muted-foreground font-medium">{form.watch("currency") || "LKR"}</span>
-                        <Input {...field} type="number" step="0.01" className="pl-14" />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency <span className="text-destructive">*</span></FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || "LKR"}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {currencies.map((curr) => (
+                            <SelectItem key={curr.code} value={curr.code}>{curr.code} - {curr.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="retailPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Retail Price <span className="text-destructive">*</span></FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2.5 text-sm text-muted-foreground font-medium">{form.watch("currency") || "LKR"}</span>
+                          <Input {...field} type="number" step="0.01" className="pl-14" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <FormField
               control={form.control}

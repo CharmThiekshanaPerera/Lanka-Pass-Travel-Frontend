@@ -28,7 +28,7 @@ const serviceCategories = [
   "Transport",
   "Activity",
   "Combo Package",
-  "Merchant Discount",
+  "Merchant",
   "Other",
 ];
 
@@ -128,6 +128,10 @@ const emptyService = {
   blackoutDates: [] as Date[],
   blackoutWeekends: false,
   blackoutHolidays: false,
+  // Discount fields
+  discountType: "percentage",
+  discountValue: "",
+  promotions: "",
 };
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -138,6 +142,19 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
   const updateService = (index: number, field: string, value: any) => {
     const updated = [...services];
     updated[index] = { ...updated[index], [field]: value };
+
+    // Auto-fill disabled fields for Merchant category
+    if (field === "serviceCategory" && value === "Merchant") {
+      updated[index] = {
+        ...updated[index],
+        durationValue: 1,
+        durationUnit: "hours",
+        groupSizeMin: 1,
+        groupSizeMax: 1,
+        dailyCapacity: 1
+      };
+    }
+
     updateFormData("services", updated);
   };
 
@@ -162,14 +179,14 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
 
   const handleBlackoutDateToggle = (index: number, date: Date) => {
     const currentDates = services[index].blackoutDates || [];
-    const isSelected = currentDates.some((d: Date) => 
+    const isSelected = currentDates.some((d: Date) =>
       d.toDateString() === date.toDateString()
     );
-    
+
     const updated = isSelected
       ? currentDates.filter((d: Date) => d.toDateString() !== date.toDateString())
       : [...currentDates, date];
-    
+
     updateService(index, "blackoutDates", updated);
   };
 
@@ -301,12 +318,13 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 value={service.durationValue}
                 onChange={(e) => updateService(index, "durationValue", e.target.value)}
                 className="w-24"
+                disabled={service.serviceCategory === "Merchant"}
               />
               <Select
                 value={service.durationUnit}
                 onValueChange={(value) => updateService(index, "durationUnit", value)}
               >
-                <SelectTrigger className="w-32 h-12">
+                <SelectTrigger className="w-32 h-12" disabled={service.serviceCategory === "Merchant"}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -329,11 +347,11 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                   key={lang}
                   type="button"
                   onClick={() => toggleArrayItem(index, "languagesOffered", lang)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    (service.languagesOffered || []).includes(lang)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${(service.languagesOffered || []).includes(lang)
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    } ${service.serviceCategory === "Merchant" ? "opacity-50 cursor-not-allowed" : ""}`}
+                  disabled={service.serviceCategory === "Merchant"}
                 >
                   {lang}
                 </button>
@@ -359,6 +377,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 value={service.groupSizeMin}
                 onChange={(e) => updateService(index, "groupSizeMin", e.target.value)}
                 className="w-24"
+                disabled={service.serviceCategory === "Merchant"}
               />
               <span className="text-muted-foreground">to</span>
               <Input
@@ -367,6 +386,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 value={service.groupSizeMax}
                 onChange={(e) => updateService(index, "groupSizeMax", e.target.value)}
                 className="w-24"
+                disabled={service.serviceCategory === "Merchant"}
               />
               <span className="text-muted-foreground">people</span>
             </div>
@@ -401,11 +421,10 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                   key={day}
                   type="button"
                   onClick={() => toggleArrayItem(index, "operatingDays", day)}
-                  className={`w-full h-12 rounded-lg text-sm font-medium transition-all ${
-                    (service.operatingDays || []).includes(day)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
+                  className={`w-full h-12 rounded-lg text-sm font-medium transition-all ${(service.operatingDays || []).includes(day)
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
                 >
                   {day}
                 </button>
@@ -419,7 +438,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
             <p className="text-sm text-muted-foreground mb-4">
               Select dates or periods when your service is unavailable
             </p>
-            
+
             <div className="space-y-4">
               {/* Quick Options */}
               <div className="flex flex-wrap gap-4">
@@ -430,7 +449,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                     onCheckedChange={(checked) => updateService(index, "blackoutHolidays", checked)}
                   />
                   <Label htmlFor={`holidays-${index}`} className="text-sm cursor-pointer">
-                    Exclude public holidays
+                    Block Public Holidays
                   </Label>
                 </div>
               </div>
@@ -445,7 +464,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                       className="w-full justify-start text-left font-normal h-12"
                     >
                       <Calendar className="mr-2 h-4 w-4" />
-                      {service.blackoutDates?.length > 0 
+                      {service.blackoutDates?.length > 0
                         ? `${service.blackoutDates.length} date(s) selected`
                         : "Select dates"}
                     </Button>
@@ -550,11 +569,10 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                   key={district}
                   type="button"
                   onClick={() => toggleArrayItem(index, "locationsCovered", district)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    (service.locationsCovered || []).includes(district)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${(service.locationsCovered || []).includes(district)
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
                 >
                   {district}
                 </button>
@@ -590,61 +608,111 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
             )}
           </div>
 
-          {/* PRICING SECTION */}
+          {/* PRICING OR DISCOUNT SECTION */}
           <div className="pt-4 border-t border-border">
-            <h4 className="font-display text-lg font-semibold text-foreground mb-4">Pricing</h4>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Currency Selection - Clean Dropdown */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Currency <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={service.currency || "LKR"}
-                  onValueChange={(value) => updateService(index, "currency", value)}
-                >
-                  <SelectTrigger className="h-12">
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map((curr) => (
-                      <SelectItem key={curr.code} value={curr.code}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{curr.code}</span>
-                          <span className="text-muted-foreground">-</span>
-                          <span>{curr.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Retail Price */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Retail Price <span className="text-destructive">*</span>
-                </Label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                    <span className="font-medium">
-                      {currencies.find(c => c.code === service.currency)?.code || "LKR"}
-                    </span>
+            {service.serviceCategory === "Merchant" ? (
+              <>
+                <h4 className="font-display text-lg font-semibold text-foreground mb-4">Discount Details</h4>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Discount Type</Label>
+                    <Select
+                      value={service.discountType || "percentage"}
+                      onValueChange={(val) => updateService(index, "discountType", val)}
+                    >
+                      <SelectTrigger className="h-12">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">Percentage Off (%)</SelectItem>
+                        <SelectItem value="amount">Fixed Amount Off</SelectItem>
+                        <SelectItem value="promotions">Promotions (e.g., BOGO)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={service.retailPrice}
-                    onChange={(e) => updateService(index, "retailPrice", e.target.value)}
-                    className="pl-14 h-12"
-                  />
+
+                  {service.discountType !== "promotions" ? (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        {service.discountType === "percentage" ? "Percentage Off (%)" : "Amount Off"}
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder={service.discountType === "percentage" ? "e.g., 5" : "e.g., 500"}
+                        value={service.discountValue}
+                        onChange={(e) => updateService(index, "discountValue", e.target.value)}
+                        className="h-12"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Promotion Description</Label>
+                      <Input
+                        placeholder="e.g., Buy 1 get 1 Free"
+                        value={service.promotions}
+                        onChange={(e) => updateService(index, "promotions", e.target.value)}
+                        className="h-12"
+                      />
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Price that will be shown to travelers
-                </p>
-              </div>
-            </div>
+              </>
+            ) : (
+              <>
+                <h4 className="font-display text-lg font-semibold text-foreground mb-4">Pricing</h4>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Currency Selection - Clean Dropdown */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Currency <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={service.currency || "LKR"}
+                      onValueChange={(value) => updateService(index, "currency", value)}
+                    >
+                      <SelectTrigger className="h-12">
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencies.map((curr) => (
+                          <SelectItem key={curr.code} value={curr.code}>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{curr.code}</span>
+                              <span className="text-muted-foreground">-</span>
+                              <span>{curr.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Retail Price */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Retail Price <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                        <span className="font-medium">
+                          {currencies.find(c => c.code === service.currency)?.code || "LKR"}
+                        </span>
+                      </div>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={service.retailPrice}
+                        onChange={(e) => updateService(index, "retailPrice", e.target.value)}
+                        className="pl-14 h-12"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Price that will be shown to travelers
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Additional Info Fields */}
@@ -683,16 +751,6 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Accessibility Info</Label>
-            <Textarea
-              placeholder="e.g., Stairs required, not wheelchair friendly"
-              value={service.accessibilityInfo}
-              onChange={(e) => updateService(index, "accessibilityInfo", e.target.value)}
-              rows={2}
-              className="resize-none"
-            />
-          </div>
         </div>
       ))}
 
