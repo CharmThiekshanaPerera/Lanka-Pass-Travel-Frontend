@@ -50,6 +50,13 @@ export interface UpdateRequestsResponse {
     count: number;
 }
 
+export interface ChatSummary {
+    vendor_id: string;
+    vendor_name: string;
+    latest_message: ChatMessage;
+    unread_count: number;
+}
+
 class ChatService {
     // ==================== CHAT MESSAGES ====================
 
@@ -99,6 +106,18 @@ class ChatService {
             return response.data;
         } catch (error: any) {
             throw new Error(error.response?.data?.detail || 'Failed to get unread count');
+        }
+    }
+
+    /**
+     * Get summary of all vendor chats for admin
+     */
+    async getAdminChatSummary(): Promise<{ success: boolean; summary: ChatSummary[] }> {
+        try {
+            const response = await api.get('/api/admin/chat/summary');
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || 'Failed to get chat summary');
         }
     }
 

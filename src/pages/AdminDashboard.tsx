@@ -62,10 +62,12 @@ import {
   MessageCircle,
   Ban,
   UserMinus,
+  Bell,
 
   Send,
   Paperclip,
   Maximize2,
+  ChevronRight,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -82,6 +84,13 @@ import { vendorService } from "@/services/vendorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { AdminChatModal } from "@/components/admin/AdminChatModal";
+import { chatService, ChatSummary } from "@/services/chatService";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Define the shape of our frontend vendor object (mapping from backend)
 interface VendorSubmission {
@@ -151,6 +160,10 @@ const AdminDashboard = () => {
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatVendor, setChatVendor] = useState<VendorSubmission | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [chatSummaries, setChatSummaries] = useState<ChatSummary[]>([]);
+  const [isLoadingSummaries, setIsLoadingSummaries] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const handleCommissionChange = (serviceId: string, value: string) => {
     setCommissionValues(prev => ({ ...prev, [serviceId]: value }));
@@ -180,6 +193,31 @@ const AdminDashboard = () => {
       toast.error(error.response?.data?.detail || "Failed to update commission");
     } finally {
       setUpdatingServiceId(null);
+    }
+  };
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await chatService.getUnreadCount();
+      if (res.success) {
+        setUnreadCount(res.unread_count);
+      }
+    } catch (error) {
+      console.error("Failed to fetch admin unread count:", error);
+    }
+  };
+
+  const fetchChatSummaries = async () => {
+    setIsLoadingSummaries(true);
+    try {
+      const res = await chatService.getAdminChatSummary();
+      if (res.success) {
+        setChatSummaries(res.summary);
+      }
+    } catch (error) {
+      console.error("Failed to fetch chat summaries:", error);
+    } finally {
+      setIsLoadingSummaries(false);
     }
   };
 
@@ -320,6 +358,23 @@ const AdminDashboard = () => {
       fetchManagers();
     }
   }, [user]);
+
+  // Combined polling for counts and summaries
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchUnreadCount();
+      if (activeTab === "support") {
+        fetchChatSummaries();
+      }
+    };
+
+    handleRefresh(); // Initial fetch
+
+    const intervalTime = activeTab === "support" ? 10000 : 15000;
+    const interval = setInterval(handleRefresh, intervalTime);
+
+    return () => clearInterval(interval);
+  }, [user, activeTab]);
 
   const filteredVendors = vendors.filter((vendor) => {
     const matchesSearch =
@@ -498,10 +553,36 @@ const AdminDashboard = () => {
                 <p className="text-xs text-muted-foreground">Vendor Verification Portal</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="gap-2" onClick={handleLogoutClick}>
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
+            <div className="flex items-center gap-3">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative"
+                      onClick={() => setActiveTab("support")}
+                    >
+                      <Bell className="w-5 h-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{unreadCount > 0 ? `${unreadCount} unread messages` : "No unread messages"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleLogoutClick}>
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -538,11 +619,20 @@ const AdminDashboard = () => {
       </AlertDialog>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-8">
             <TabsTrigger value="overview" className="gap-2">
               <LayoutDashboard className="w-4 h-4" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="support" className="gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Support
+              {unreadCount > 0 && (
+                <Badge className="ml-1 bg-red-500 hover:bg-red-600 px-1.5 py-0 min-w-[1.25rem] h-5">
+                  {unreadCount}
+                </Badge>
+              )}
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="managers" className="gap-2">
@@ -794,6 +884,87 @@ const AdminDashboard = () => {
               </Card>
             </TabsContent>
           )}
+
+          <TabsContent value="support">
+            <Card className="glass-card border-0">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5 text-primary" />
+                  Vendor Messages
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoadingSummaries ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                    <p className="text-muted-foreground">Loading conversations...</p>
+                  </div>
+                ) : chatSummaries.length === 0 ? (
+                  <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted">
+                    <MessageCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-muted-foreground">No conversations yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {chatSummaries.map((chat) => (
+                      <div
+                        key={chat.vendor_id}
+                        onClick={() => {
+                          const vendor = vendors.find(v => v.id === chat.vendor_id);
+                          setChatVendor(vendor || { id: chat.vendor_id, businessName: chat.vendor_name, vendorType: "Vendor" } as any);
+                          setIsChatOpen(true);
+                        }}
+                        className={`
+                          group flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all
+                          ${chat.unread_count > 0 ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/50"}
+                        `}
+                      >
+                        <div className="relative">
+                          <Avatar className="w-12 h-12 border-2 border-background">
+                            <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                              {chat.vendor_name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {chat.unread_count > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-background text-[10px] font-bold text-white flex items-center justify-center">
+                                {chat.unread_count}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h4 className="font-semibold truncate group-hover:text-primary transition-colors">
+                              {chat.vendor_name}
+                            </h4>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(chat.latest_message.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                            {chat.latest_message.sender === "admin" ? "You: " : ""}
+                            {chat.latest_message.message}
+                          </p>
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -1622,7 +1793,13 @@ const AdminDashboard = () => {
       {/* Vendor Chat Modal */}
       <AdminChatModal
         isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
+        onClose={() => {
+          setIsChatOpen(false);
+          fetchUnreadCount();
+          if (activeTab === "support") {
+            fetchChatSummaries();
+          }
+        }}
         vendorId={chatVendor?.id || null}
         businessName={chatVendor?.businessName || "Vendor"}
         vendorType={chatVendor?.vendorType || "Unknown"}
