@@ -29,6 +29,9 @@ export interface AuthResponse {
   user: User;
 }
 
+// Singleton promise to prevent multiple refresh calls (deduplication)
+let refreshPromise: Promise<any> | null = null;
+
 export const authService = {
   // Login
   login: async (data: LoginData): Promise<AuthResponse> => {
@@ -73,11 +76,28 @@ export const authService = {
     } catch (error) {
       // Try to refresh
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (refreshToken) {
-          const refreshRes = await authService.refreshToken(refreshToken);
-          if (refreshRes.access_token) {
-            return { success: true, user: refreshRes.user };
+        const refreshTokenStr = localStorage.getItem('refresh_token');
+        if (refreshTokenStr) {
+          // Deduplication logic
+          if (!refreshPromise) {
+            console.log("Starting new token refresh");
+            refreshPromise = authService.refreshToken(refreshTokenStr)
+              .catch(e => {
+                refreshPromise = null;
+                throw e;
+              });
+          } else {
+            console.log("Reusing pending token refresh");
+          }
+
+          try {
+            const refreshRes = await refreshPromise;
+            if (refreshRes && refreshRes.access_token) {
+              return { success: true, user: refreshRes.user };
+            }
+          } finally {
+            // Reset after short delay
+            setTimeout(() => { refreshPromise = null; }, 500);
           }
         }
       } catch (refreshErr) {
@@ -89,15 +109,19 @@ export const authService = {
 
   // Refresh Token
   refreshToken: async (token: string) => {
-    const response = await api.post('/api/auth/refresh', { refresh_token: token });
-    const { access_token, refresh_token, user } = response.data;
+    try {
+      const response = await api.post('/api/auth/refresh', { refresh_token: token });
+      const { access_token, refresh_token, user } = response.data;
 
-    if (access_token) {
-      localStorage.setItem('access_token', access_token);
-      if (refresh_token) localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user', JSON.stringify(user));
+      if (access_token) {
+        localStorage.setItem('access_token', access_token);
+        if (refresh_token) localStorage.setItem('refresh_token', refresh_token);
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+      return response.data;
+    } catch (error) {
+      throw error;
     }
-    return response.data;
   },
 
   // Logout
