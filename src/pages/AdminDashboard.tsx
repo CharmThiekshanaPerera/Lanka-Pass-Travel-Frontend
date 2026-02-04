@@ -68,7 +68,14 @@ import {
   Paperclip,
   Maximize2,
   ChevronRight,
+  MoreVertical,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -127,9 +134,13 @@ interface VendorSubmission {
     tourismLicense: string;
   };
   rejectionReason?: string;
+  adminNotes?: string;
   logoUrl?: string;
   coverImageUrl?: string;
   galleryUrls?: string[];
+  payoutFrequency?: string;
+  payoutCycle?: string;
+  payoutDate?: string;
 }
 
 const AdminDashboard = () => {
@@ -141,6 +152,7 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rejectionReason, setRejectionReason] = useState("");
+  const [adminNotes, setAdminNotes] = useState("");
 
   // Manager Management State
   const [managers, setManagers] = useState<any[]>([]);
@@ -283,6 +295,7 @@ const AdminDashboard = () => {
             tourismLicense: v.tourism_license_url,
           },
           rejectionReason: v.status_reason,
+          adminNotes: v.admin_notes || "",
           logoUrl: v.logo_url,
           coverImageUrl: v.cover_image_url,
           galleryUrls: v.gallery_urls || [],
@@ -402,6 +415,7 @@ const AdminDashboard = () => {
         const detailedVendor: VendorSubmission = {
           ...vendor,
           services: services.map((s: any) => ({
+            id: s.id,
             serviceName: s.service_name,
             serviceCategory: s.service_category,
             shortDescription: s.short_description,
@@ -427,17 +441,22 @@ const AdminDashboard = () => {
             // Blackout dates
             blackoutDates: s.blackout_dates || [],
             blackoutHolidays: s.blackout_holidays || false,
+            status: s.status // Ensure status is mapped
           })),
           bankBranch: fullVendor.bank_branch || vendor.bankBranch,
+          adminNotes: fullVendor.admin_notes || vendor.adminNotes || "",
           pricing: services.map((s: any) => ({
             currency: s.currency,
             retailPrice: s.retail_price,
             netPrice: (s.retail_price * 0.85).toFixed(2),
+            commission: s.commission_percent || 0, // Ensure commission is mapped if needed
+            dailyCapacity: s.daily_capacity
           })),
         };
         setSelectedVendor(detailedVendor);
         setActiveDetailTab("overview");
         setRejectionReason("");
+        setAdminNotes(detailedVendor.adminNotes || "");
         setIsDetailOpen(true);
       }
     } catch (error: any) {
@@ -489,17 +508,20 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleStatusChange = async (vendorId: string, status: string, reason?: string) => {
+  const handleStatusChange = async (vendorId: string, status: string, reason?: string, notes?: string) => {
     try {
       setProcessingVendorId(vendorId);
-      await vendorService.updateVendorStatus(vendorId, status, reason);
+      // Use the provided notes, or fallback to the state if available and matching vendor
+      const notesToSend = notes !== undefined ? notes : (selectedVendor?.id === vendorId ? adminNotes : undefined);
+
+      await vendorService.updateVendorStatus(vendorId, status, reason, notesToSend);
       setVendors((prev) =>
         prev.map((v) =>
-          v.id === vendorId ? { ...v, status: status, rejectionReason: reason } : v
+          v.id === vendorId ? { ...v, status: status, rejectionReason: reason, adminNotes: notesToSend || v.adminNotes } : v
         )
       );
       if (selectedVendor && selectedVendor.id === vendorId) {
-        setSelectedVendor({ ...selectedVendor, status: status, rejectionReason: reason });
+        setSelectedVendor({ ...selectedVendor, status: status, rejectionReason: reason, adminNotes: notesToSend || selectedVendor.adminNotes });
       }
       toast.success(`Vendor status updated to ${status}`);
       fetchVendors();
@@ -510,31 +532,68 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleServiceStatusChange = async (serviceId: string, status: string) => {
+    try {
+      await vendorService.updateServiceStatus(serviceId, status);
+      toast.success(`Service status updated to ${status}`);
+
+      // Send notification to vendor
+      if (selectedVendor) {
+        try {
+          const service = selectedVendor.services.find((s: any) => s.id === serviceId);
+          const serviceName = service?.serviceName || "Service";
+          await chatService.sendMessage(selectedVendor.id, `Your service "${serviceName}" status has been updated to: ${status.toUpperCase()}`);
+        } catch (msgError) {
+          console.error("Failed to send status notification", msgError);
+        }
+
+        // Refresh current vendor details
+        handleViewDetails(selectedVendor);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update service status");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
         return (
-          <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+          <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
             <Clock className="w-3 h-3 mr-1" />
             Pending
           </Badge>
         );
       case "approved":
         return (
-          <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
             <CheckCircle2 className="w-3 h-3 mr-1" />
             Approved
           </Badge>
         );
+      case "active":
+        return (
+          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+            <CheckCircle2 className="w-3 h-3 mr-1" />
+            Active
+          </Badge>
+        );
+      case "freeze":
+        return (
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+            <Ban className="w-3 h-3 mr-1" />
+            Freeze
+          </Badge>
+        );
       case "rejected":
         return (
-          <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
+          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
             <XCircle className="w-3 h-3 mr-1" />
             Rejected
           </Badge>
         );
       default:
-        return null;
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
@@ -783,33 +842,70 @@ const AdminDashboard = () => {
                         </TableCell>
                         <TableCell>{getStatusBadge(vendor.status)}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
-                              onClick={() => {
-                                setChatVendor(vendor);
-                                setIsChatOpen(true);
-                              }}
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewDetails(vendor)}
-                              disabled={processingVendorId === vendor.id}
-                              className="gap-2"
-                            >
-                              {processingVendorId === vendor.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleViewDetails(vendor)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setChatVendor(vendor);
+                                  setIsChatOpen(true);
+                                }}
+                              >
+                                <MessageCircle className="mr-2 h-4 w-4" />
+                                Message
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedVendor(vendor);
+                                  setAdminNotes(vendor.adminNotes || "");
+                                  // Open a specific notes dialog - assuming we reuse detail or new one
+                                  // For now, let's open details and switch to notes if possible, or build a specific one.
+                                  // User asked for "keep a text field open when in same thee dots"
+                                  // I'll implement a separate dialog for this below and open it here
+                                  setProcessingVendorId("NOTES-" + vendor.id);
+                                }}
+                              >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Admin Notes
+                              </DropdownMenuItem>
+                              <Separator className="my-1" />
+                              {vendor.status !== "approved" && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "approved")}>
+                                  <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                                  Approve
+                                </DropdownMenuItem>
                               )}
-                              View
-                            </Button>
-                          </div>
+                              {vendor.status !== "freeze" && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "freeze")}>
+                                  <Ban className="mr-2 h-4 w-4 text-amber-500" />
+                                  Freeze
+                                </DropdownMenuItem>
+                              )}
+                              {vendor.status === "freeze" && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "active")}>
+                                  <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                                  Unfreeze (Active)
+                                </DropdownMenuItem>
+                              )}
+                              {vendor.status !== "terminated" && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "terminated")} className="text-red-600">
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Terminate
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1141,6 +1237,33 @@ const AdminDashboard = () => {
                     </Card>
                   </div>
 
+                  {/* Admin Notes Section */}
+                  <Card className="border-primary/20 bg-primary/5">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-primary" />
+                        Admin Notes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <Textarea
+                        placeholder="Add private notes about this vendor..."
+                        value={adminNotes}
+                        onChange={(e) => setAdminNotes(e.target.value)}
+                        className="min-h-[100px] bg-background"
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          size="sm"
+                          onClick={() => handleStatusChange(selectedVendor.id, selectedVendor.status)}
+                          disabled={processingVendorId === selectedVendor.id}
+                        >
+                          {processingVendorId === selectedVendor.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Notes"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   {/* Operating Areas */}
                   <Card>
                     <CardHeader className="pb-3">
@@ -1205,23 +1328,42 @@ const AdminDashboard = () => {
 
                 {/* Services Tab */}
                 <TabsContent value="services" className="space-y-4 mt-4">
-                  {selectedVendor.services.map((service, index) => (
-                    <Card key={index}>
+                  {selectedVendor.services.map((service: any, index) => (
+                    <Card key={index} className={service.status === 'freeze' ? 'opacity-75 border-amber-200 bg-amber-50' : ''}>
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                           <div>
-                            <Badge className="mb-2">{service.serviceCategory}</Badge>
+                            <div className="flex gap-2 mb-2">
+                              <Badge>{service.serviceCategory}</Badge>
+                              {getStatusBadge(service.status || 'pending')}
+                            </div>
                             <CardTitle className="text-lg">{service.serviceName}</CardTitle>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-primary">
-                              {selectedVendor.pricing[index]?.currency}{" "}
-                              {selectedVendor.pricing[index]?.retailPrice}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Net: {selectedVendor.pricing[index]?.currency}{" "}
-                              {selectedVendor.pricing[index]?.netPrice}
-                            </p>
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="text-right">
+                              <p className="text-xl font-bold text-primary">
+                                {selectedVendor.pricing[index]?.currency}{" "}
+                                {selectedVendor.pricing[index]?.retailPrice}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Net: {selectedVendor.pricing[index]?.currency}{" "}
+                                {selectedVendor.pricing[index]?.netPrice}
+                              </p>
+                            </div>
+                            <Select
+                              value={service.status || "pending"}
+                              onValueChange={(val) => handleServiceStatusChange(service.id, val)}
+                            >
+                              <SelectTrigger className="w-[130px] h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="freeze">Freeze</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                       </CardHeader>
@@ -1625,7 +1767,15 @@ const AdminDashboard = () => {
 
 
                   {selectedVendor.status === "approved" && (
-                    <>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleStatusChange(selectedVendor.id, "pending")}
+                        disabled={processingVendorId === selectedVendor.id}
+                      >
+                        Reset to Pending
+                      </Button>
                       <Button
                         type="button"
                         variant="outline"
@@ -1654,7 +1804,17 @@ const AdminDashboard = () => {
                         <UserMinus className="w-4 h-4" />
                         Eject Vendor
                       </Button>
-                    </>
+                      <div className="flex-1" />
+                      <Button
+                        type="button"
+                        onClick={() => handleStatusChange(selectedVendor.id, "active")}
+                        disabled={processingVendorId === selectedVendor.id}
+                        className="gap-2 bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Activate Vendor
+                      </Button>
+                    </div>
                   )}
 
                   {selectedVendor.status === "pending" && (
@@ -1671,28 +1831,54 @@ const AdminDashboard = () => {
                         className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
                       >
                         <XCircle className="w-4 h-4" />
-                        Reject
+                        Reject Application
                       </Button>
                       <Button
                         type="button"
-                        onClick={() => handleApprove(selectedVendor.id)}
+                        onClick={() => handleStatusChange(selectedVendor.id, "approved")}
                         disabled={processingVendorId === selectedVendor.id}
-                        className="gap-2 bg-green-600 hover:bg-green-700"
+                        className="gap-2 bg-primary hover:bg-primary/90"
                       >
                         <CheckCircle2 className="w-4 h-4" />
-                        Approve Vendor
+                        Approve & Onboard
                       </Button>
                     </>
+                  )}
+
+
+                  {selectedVendor.status === "active" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleStatusChange(selectedVendor.id, "freeze")}
+                      disabled={processingVendorId === selectedVendor.id}
+                      className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
+                    >
+                      <Ban className="w-4 h-4" />
+                      Freeze Vendor
+                    </Button>
+                  )}
+
+                  {selectedVendor.status === "freeze" && (
+                    <Button
+                      type="button"
+                      onClick={() => handleStatusChange(selectedVendor.id, "active")}
+                      disabled={processingVendorId === selectedVendor.id}
+                      className="gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      Unfreeze / Activate
+                    </Button>
                   )}
 
                   {(selectedVendor.status === "terminated" || selectedVendor.status === "rejected" || selectedVendor.status === "ejected") && (
                     <Button
                       type="button"
-                      onClick={() => handleApprove(selectedVendor.id)}
+                      onClick={() => handleStatusChange(selectedVendor.id, "pending")}
                       disabled={processingVendorId === selectedVendor.id}
-                      className="gap-2 bg-green-600 hover:bg-green-700"
+                      className="gap-2"
                     >
-                      Re-Approve Vendor
+                      Move to Pending (Re-evaluate)
                     </Button>
                   )}
                 </div>
@@ -1804,7 +1990,46 @@ const AdminDashboard = () => {
         businessName={chatVendor?.businessName || "Vendor"}
         vendorType={chatVendor?.vendorType || "Unknown"}
       />
-    </div >
+      {/* Admin Notes Dialog */}
+      <Dialog
+        open={!!processingVendorId && processingVendorId.startsWith("NOTES-")}
+        onOpenChange={(open) => {
+          if (!open) {
+            setProcessingVendorId(null);
+            setSelectedVendor(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Admin Notes</DialogTitle>
+            <DialogDescription>
+              Add or edit notes for {selectedVendor?.businessName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+              placeholder="Enter admin notes here..."
+              className="min-h-[150px]"
+            />
+            <Button
+              onClick={async () => {
+                if (selectedVendor) {
+                  const realId = processingVendorId?.replace("NOTES-", "") || selectedVendor.id;
+                  await handleStatusChange(realId, selectedVendor.status, selectedVendor.rejectionReason, adminNotes);
+                  setProcessingVendorId(null);
+                }
+              }}
+              className="w-full"
+            >
+              Save Notes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

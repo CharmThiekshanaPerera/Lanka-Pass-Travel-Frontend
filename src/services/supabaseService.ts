@@ -24,6 +24,7 @@ export interface RegisterData {
 
 export interface AuthResponse {
   access_token: string;
+  refresh_token?: string;
   token_type: string;
   user: User;
 }
@@ -35,10 +36,13 @@ export const authService = {
       email: data.email,
       password: data.password
     });
-    const { access_token, user } = response.data;
+    const { access_token, refresh_token, user } = response.data;
 
     if (access_token) {
       localStorage.setItem('access_token', access_token);
+      if (refresh_token) {
+        localStorage.setItem('refresh_token', refresh_token);
+      }
       localStorage.setItem('user', JSON.stringify(user));
     }
 
@@ -48,10 +52,13 @@ export const authService = {
   // Register
   register: async (data: RegisterData): Promise<AuthResponse> => {
     const response = await api.post('/api/auth/register', data);
-    const { access_token, user } = response.data;
+    const { access_token, refresh_token, user } = response.data;
 
     if (access_token) {
       localStorage.setItem('access_token', access_token);
+      if (refresh_token) {
+        localStorage.setItem('refresh_token', refresh_token);
+      }
       localStorage.setItem('user', JSON.stringify(user));
     }
 
@@ -64,8 +71,33 @@ export const authService = {
       const response = await api.get('/api/auth/me');
       return { success: true, user: response.data };
     } catch (error) {
+      // Try to refresh
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          const refreshRes = await authService.refreshToken(refreshToken);
+          if (refreshRes.access_token) {
+            return { success: true, user: refreshRes.user };
+          }
+        }
+      } catch (refreshErr) {
+        console.error('Refresh failed', refreshErr);
+      }
       return { success: false, error: 'Invalid token' };
     }
+  },
+
+  // Refresh Token
+  refreshToken: async (token: string) => {
+    const response = await api.post('/api/auth/refresh', { refresh_token: token });
+    const { access_token, refresh_token, user } = response.data;
+
+    if (access_token) {
+      localStorage.setItem('access_token', access_token);
+      if (refresh_token) localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+    return response.data;
   },
 
   // Logout
