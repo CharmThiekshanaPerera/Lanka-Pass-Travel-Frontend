@@ -632,6 +632,27 @@ class VendorService {
     }
   }
 
+  async adminUpdateVendorProfile(vendorId: string, data: any): Promise<any> {
+    try {
+      const payload = {
+        business_name: data.businessName,
+        vendor_type: data.vendorType,
+        contact_person: data.contactPerson,
+        phone: data.phone,
+        business_address: data.businessAddress,
+        operating_areas: data.operatingAreas
+      };
+
+      // Remove undefined values
+      Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
+
+      const response = await api.patch(`/api/admin/vendors/${vendorId}/profile`, payload);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to update vendor profile');
+    }
+  }
+
   async getFeaturedVendors(): Promise<any[]> {
     try {
       const response = await api.get('/api/public/vendors/featured');
