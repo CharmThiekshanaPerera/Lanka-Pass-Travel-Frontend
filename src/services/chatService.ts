@@ -102,6 +102,18 @@ class ChatService {
         }
     }
 
+    /**
+     * Get unread message count for current vendor
+     */
+    async getVendorUnreadCount(): Promise<{ success: boolean; unread_count: number }> {
+        try {
+            const response = await api.get('/api/vendor/chat/unread-count');
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || 'Failed to get vendor unread count');
+        }
+    }
+
     // ==================== UPDATE REQUESTS ====================
 
     /**

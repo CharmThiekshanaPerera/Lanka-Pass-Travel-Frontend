@@ -59,6 +59,13 @@ import { vendorService } from "@/services/vendorService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { chatService } from "@/services/chatService";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const VendorDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -68,6 +75,7 @@ const VendorDashboard = () => {
   const [services, setServices] = useState<any[]>([]);
   const [fullVendorData, setFullVendorData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -119,8 +127,24 @@ const VendorDashboard = () => {
     }
   };
 
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await chatService.getVendorUnreadCount();
+      if (res.success) {
+        setUnreadCount(res.unread_count);
+      }
+    } catch (error) {
+      console.error("Failed to fetch unread count:", error);
+    }
+  };
+
   useEffect(() => {
     refreshData();
+    fetchUnreadCount();
+
+    // Poll for unread count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const navItems = [
@@ -245,10 +269,29 @@ const VendorDashboard = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative"
+                      onClick={() => setActiveTab("support")}
+                    >
+                      <Bell className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{unreadCount > 0 ? `${unreadCount} unread messages` : "No unread messages"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
