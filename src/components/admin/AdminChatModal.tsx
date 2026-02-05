@@ -404,28 +404,28 @@ export const AdminChatModal = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
-                <DialogHeader className="p-4 border-b bg-background z-10 shrink-0">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 border">
+            <DialogContent className="max-w-2xl w-[95vw] sm:w-full h-[90vh] sm:h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
+                <DialogHeader className="p-3 sm:p-4 border-b bg-background z-10 shrink-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 border shrink-0">
                                 {logoUrl ? (
                                     <AvatarImage src={logoUrl} alt={businessName} />
                                 ) : (
-                                    <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs sm:text-sm">
                                         {businessName.split(" ").map(n => n[0]).join("")}
                                     </AvatarFallback>
                                 )}
                             </Avatar>
-                            <div>
-                                <DialogTitle className="text-base font-semibold flex items-center gap-2">
-                                    {businessName}
-                                    <Badge variant="outline" className="text-xs font-normal">
+                            <div className="min-w-0">
+                                <DialogTitle className="text-sm sm:text-base font-semibold flex flex-wrap items-center gap-1.5">
+                                    <span className="truncate max-w-[150px] sm:max-w-none">{businessName}</span>
+                                    <Badge variant="outline" className="text-[10px] font-normal px-1 h-4">
                                         {vendorType}
                                     </Badge>
                                 </DialogTitle>
-                                <DialogDescription className="text-xs">
-                                    Chat Context: {vendorId}
+                                <DialogDescription className="text-[10px] sm:text-xs truncate">
+                                    {vendorId}
                                 </DialogDescription>
                             </div>
                         </div>
@@ -435,10 +435,10 @@ export const AdminChatModal = ({
                                 variant="outline"
                                 size="sm"
                                 onClick={onNextPending}
-                                className="gap-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5"
+                                className="h-8 text-xs gap-1 border-primary/20 hover:border-primary/40 hover:bg-primary/5 self-end sm:self-center"
                             >
                                 Next Action
-                                <ChevronRight className="w-4 h-4" />
+                                <ChevronRight className="w-3 h-3" />
                             </Button>
                         )}
                     </div>
@@ -464,7 +464,7 @@ export const AdminChatModal = ({
                                             }}
                                             className={`flex flex-col ${isAdminMsg ? "items-end" : "items-start"}`}
                                         >
-                                            <div className={`max-w-[85%] rounded-lg p-3 ${isAdminMsg
+                                            <div className={`max-w-[90%] sm:max-w-[85%] rounded-lg p-2 sm:p-3 ${isAdminMsg
                                                 ? "bg-primary text-primary-foreground"
                                                 : "bg-muted"
                                                 }`}>
