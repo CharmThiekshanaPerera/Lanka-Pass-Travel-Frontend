@@ -155,9 +155,18 @@ interface VendorProfileUpdate {
   business_name?: string;
   vendor_type?: string;
   contact_person?: string;
-  phone?: string;
+  phone_number?: string;
   business_address?: string;
   operating_areas?: string[];
+  email?: string;
+  website?: string;
+  bank_name?: string;
+  account_holder_name?: string;
+  account_number?: string;
+  bank_branch?: string;
+  payout_frequency?: string;
+  payout_cycle?: string;
+  payout_date?: string;
 }
 
 const AdminDashboard = () => {
@@ -210,7 +219,7 @@ const AdminDashboard = () => {
       business_name: vendor.businessName,
       vendor_type: vendor.vendorType,
       contact_person: vendor.contactPerson,
-      phone: vendor.mobileNumber || vendor.phone || "",
+      phone_number: vendor.mobileNumber || vendor.phone || "",
       business_address: vendor.businessAddress,
       operating_areas: vendor.operatingAreas,
       email: vendor.email,
@@ -572,7 +581,8 @@ const AdminDashboard = () => {
             groupSizeMax: s.group_size_max,
             retailPrice: s.retail_price,
             currency: s.currency,
-            netPrice: (s.retail_price * 0.85).toFixed(2),
+            netPrice: s.net_price ?? s.retail_price,
+            commission: s.commission ?? 0,
             imageUrls: s.image_urls || [],
             languagesOffered: s.languages_offered || [],
             operatingDays: s.operating_days || [],
@@ -595,8 +605,8 @@ const AdminDashboard = () => {
           pricing: services.map((s: any) => ({
             currency: s.currency,
             retailPrice: s.retail_price,
-            netPrice: (s.retail_price * 0.85).toFixed(2),
-            commission: s.commission_percent || 0, // Ensure commission is mapped if needed
+            netPrice: s.net_price ?? s.retail_price,
+            commission: s.commission ?? 0,
             dailyCapacity: s.daily_capacity
           })),
         };
@@ -901,8 +911,8 @@ const AdminDashboard = () => {
               <Label htmlFor="phone">Phone Number</Label>
               <Input
                 id="phone"
-                value={editFormData.phone || ""}
-                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                value={editFormData.phone_number || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, phone_number: e.target.value })}
               />
             </div>
 
@@ -2050,7 +2060,9 @@ const AdminDashboard = () => {
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 Net: {selectedVendor.pricing[index]?.currency}{" "}
-                                {selectedVendor.pricing[index]?.netPrice}
+                                {commissionValues[service.id] && !isNaN(Number(commissionValues[service.id]))
+                                  ? (Number(selectedVendor.pricing[index]?.retailPrice || 0) * (1 - Number(commissionValues[service.id]) / 100)).toFixed(2)
+                                  : selectedVendor.pricing[index]?.netPrice}
                               </p>
                             </div>
 

@@ -285,7 +285,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
           type="button"
           onClick={handleSubmitClick}
           disabled={!allChecked || isSubmitting}
-          className="w-full"
+          className="w-full text-base sm:text-lg py-6 sm:py-8"
         >
           {isSubmitting ? "Submitting..." : "Submit Application & Activate Account"}
         </Button>
