@@ -486,6 +486,15 @@ class VendorService {
     }
   }
 
+  async resetPassword(userId: string, password: string): Promise<any> {
+    try {
+      const response = await api.patch(`/api/admin/users/${userId}/password`, { password });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to reset password');
+    }
+  }
+
   // Get current vendor's profile
   async getVendorProfile(): Promise<any> {
     try {
@@ -649,7 +658,10 @@ class VendorService {
         bank_branch: data.bank_branch,
         payout_frequency: data.payout_frequency,
         payout_cycle: data.payout_cycle,
-        payout_date: data.payout_date
+        payout_date: data.payout_date,
+        reg_certificate_url: data.reg_certificate_url,
+        nic_passport_url: data.nic_passport_url,
+        tourism_license_url: data.tourism_license_url
       };
 
       // Remove undefined values

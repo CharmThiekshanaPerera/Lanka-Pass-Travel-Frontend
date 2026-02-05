@@ -19,6 +19,7 @@ import VendorRegistrationSuccess from "./pages/VendorRegistrationSuccess";
 import NotFound from "./pages/NotFound";
 import LoadingScreen from "@/components/LoadingScreen";
 import TestConnection from './components/TestConnection';
+import { SessionTimeoutModal } from "./components/auth/SessionTimeoutModal";
 
 
 // Initialize QueryClient
@@ -61,6 +62,7 @@ const AppContent = () => {
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <SessionTimeoutModal />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Index />} />
@@ -70,7 +72,7 @@ const AppContent = () => {
           {/* Authentication Routes */}
           <Route path="/vendor-login" element={<VendorLogin />} />
           <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/register" element={<AdminRegister />} />
+          {/* <Route path="/admin/register" element={<AdminRegister />} /> */}
 
           {/* Protected Routes - Vendor Access */}
           <Route
@@ -101,7 +103,7 @@ const AppContent = () => {
             element={
               <ProtectedRoute loginPath="/admin/login">
                 <RoleBasedRoute allowedRoles={['admin', 'manager']}>
-                  <AdminDashboard /> 
+                  <AdminDashboard />
                 </RoleBasedRoute>
               </ProtectedRoute>
             }
