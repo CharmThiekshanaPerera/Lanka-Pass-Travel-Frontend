@@ -268,12 +268,14 @@ const SupportChatTab = ({ vendorId }: SupportChatTabProps) => {
                                                     {message.attachments.map((attachment, idx) => (
                                                         <div key={idx}>
                                                             {attachment.type === "image" ? (
-                                                                <div className="rounded-lg overflow-hidden border max-w-xs">
-                                                                    <img
-                                                                        src={attachment.url}
-                                                                        alt={attachment.name}
-                                                                        className="w-full h-auto"
-                                                                    />
+                                                                <div className="rounded-lg overflow-hidden border max-w-xs group relative">
+                                                                    <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block hover:opacity-90 transition-opacity">
+                                                                        <img
+                                                                            src={attachment.url}
+                                                                            alt={attachment.name}
+                                                                            className="w-full h-auto"
+                                                                        />
+                                                                    </a>
                                                                     <div className="p-2 bg-muted text-xs flex items-center justify-between">
                                                                         <span className="truncate">{attachment.name}</span>
                                                                         <Button size="icon" variant="ghost" className="h-6 w-6" asChild>
@@ -284,17 +286,23 @@ const SupportChatTab = ({ vendorId }: SupportChatTabProps) => {
                                                                     </div>
                                                                 </div>
                                                             ) : (
-                                                                <div className="flex items-center gap-3 p-3 rounded-lg border bg-card max-w-xs">
+                                                                <a
+                                                                    href={attachment.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="flex items-center gap-3 p-3 rounded-lg border bg-card max-w-xs hover:bg-accent transition-colors block"
+                                                                >
                                                                     <File className="h-8 w-8 text-muted-foreground" />
                                                                     <div className="flex-1 min-w-0">
                                                                         <p className="text-sm font-medium truncate">{attachment.name}</p>
+                                                                        <p className="text-[10px] text-muted-foreground">Click to open</p>
                                                                     </div>
-                                                                    <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
+                                                                    <Button size="icon" variant="ghost" className="h-8 w-8" asChild onClick={(e) => e.stopPropagation()}>
                                                                         <a href={attachment.url} download={attachment.name}>
                                                                             <Download className="h-4 w-4" />
                                                                         </a>
                                                                     </Button>
-                                                                </div>
+                                                                </a>
                                                             )}
                                                         </div>
                                                     ))}

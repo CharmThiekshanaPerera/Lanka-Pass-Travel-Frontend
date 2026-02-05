@@ -635,12 +635,21 @@ class VendorService {
   async adminUpdateVendorProfile(vendorId: string, data: any): Promise<any> {
     try {
       const payload = {
-        business_name: data.businessName,
-        vendor_type: data.vendorType,
-        contact_person: data.contactPerson,
-        phone: data.phone,
-        business_address: data.businessAddress,
-        operating_areas: data.operatingAreas
+        business_name: data.business_name,
+        vendor_type: data.vendor_type,
+        contact_person: data.contact_person,
+        phone_number: data.phone_number,
+        business_address: data.business_address,
+        operating_areas: data.operating_areas,
+        email: data.email,
+        website: data.website,
+        bank_name: data.bank_name,
+        account_holder_name: data.account_holder_name,
+        account_number: data.account_number,
+        bank_branch: data.bank_branch,
+        payout_frequency: data.payout_frequency,
+        payout_cycle: data.payout_cycle,
+        payout_date: data.payout_date
       };
 
       // Remove undefined values
