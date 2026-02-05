@@ -28,8 +28,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Note: We removed the auto-logout on 401 here to allow the authService
-    // to handle token refreshes.
+    // Dispatch global event for session timeout on 401
+    if (error.response?.status === 401) {
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+    }
 
     if (error.response?.status === 500) {
       console.error('Server error:', error.response.data);

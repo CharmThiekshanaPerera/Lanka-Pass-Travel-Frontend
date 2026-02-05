@@ -149,6 +149,7 @@ interface VendorSubmission {
   isPublic?: boolean;
   phone?: string;
   website?: string;
+  userId?: string;
 }
 
 interface VendorProfileUpdate {
@@ -209,6 +210,12 @@ const AdminDashboard = () => {
   // Edit Vendor State
   const [editingVendor, setEditingVendor] = useState<VendorSubmission | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // Password Reset State
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Edit Form State (local to avoid mutating vendors directly until save)
   const [editFormData, setEditFormData] = useState<VendorProfileUpdate>({});
@@ -335,6 +342,31 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetPasswordUserId || !newPassword) {
+      toast.error("Please enter a new password");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      await vendorService.resetPassword(resetPasswordUserId, newPassword);
+      toast.success("Password reset successfully");
+      setResetPasswordOpen(false);
+      setNewPassword("");
+      setResetPasswordUserId(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to reset password");
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -402,7 +434,8 @@ const AdminDashboard = () => {
           logoUrl: v.logo_url,
           coverImageUrl: v.cover_image_url,
           galleryUrls: v.gallery_urls || [],
-          isPublic: v.is_public || false
+          isPublic: v.is_public || false,
+          userId: v.user_id
         }));
         setVendors(mappedVendors);
       }
@@ -1034,6 +1067,52 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Shield className="w-5 h-5" />
+              Reset User Password
+            </DialogTitle>
+            <DialogDescription>
+              Enter a new password for this account. This will instantly update their login credentials.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="Minimum 6 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setResetPasswordOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={isResettingPassword || newPassword.length < 6}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {isResettingPassword ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                "Update Password"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-8 hidden md:flex">
@@ -1050,17 +1129,17 @@ const AdminDashboard = () => {
                 </Badge>
               )}
             </TabsTrigger>
+            {(isAdmin || isManager) && (
+              <TabsTrigger value="public-vendors" className="gap-2">
+                <Globe className="w-4 h-4" />
+                Public Vendors
+              </TabsTrigger>
+            )}
             {isAdmin && (
-              <>
-                <TabsTrigger value="public-vendors" className="gap-2">
-                  <Globe className="w-4 h-4" />
-                  Public Vendors
-                </TabsTrigger>
-                <TabsTrigger value="managers" className="gap-2">
-                  <Users className="w-4 h-4" />
-                  Managers
-                </TabsTrigger>
-              </>
+              <TabsTrigger value="managers" className="gap-2">
+                <Users className="w-4 h-4" />
+                Managers
+              </TabsTrigger>
             )}
           </TabsList>
 
@@ -1087,21 +1166,21 @@ const AdminDashboard = () => {
                     )}
                   </div>
                 </SelectItem>
+                {(isAdmin || isManager) && (
+                  <SelectItem value="public-vendors">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      Public Vendors
+                    </div>
+                  </SelectItem>
+                )}
                 {isAdmin && (
-                  <>
-                    <SelectItem value="public-vendors">
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-4 h-4" />
-                        Public Vendors
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="managers">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        Managers
-                      </div>
-                    </SelectItem>
-                  </>
+                  <SelectItem value="managers">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Managers
+                    </div>
+                  </SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -1372,6 +1451,21 @@ const AdminDashboard = () => {
                                 )}
                               </DropdownMenuItem>
                               <Separator className="my-1" />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (vendor.userId) {
+                                    setResetPasswordUserId(vendor.userId);
+                                    setResetPasswordOpen(true);
+                                  } else {
+                                    toast.error("User ID not found for this vendor");
+                                  }
+                                }}
+                                className="text-amber-600"
+                              >
+                                <Shield className="mr-2 h-4 w-4" />
+                                Reset Password
+                              </DropdownMenuItem>
+                              <Separator className="my-1" />
                               {vendor.status !== "approved" && (
                                 <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "approved")}>
                                   <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
@@ -1407,7 +1501,7 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          {isAdmin && (
+          {(isAdmin || isManager) && (
             <TabsContent value="public-vendors" className="space-y-6">
               <div className="flex justify-between items-center mb-6">
                 <div>
@@ -1537,7 +1631,19 @@ const AdminDashboard = () => {
                                 {manager.is_active ? "Active" : "Inactive"}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                onClick={() => {
+                                  setResetPasswordUserId(manager.id);
+                                  setResetPasswordOpen(true);
+                                }}
+                                title="Reset Password"
+                              >
+                                <Shield className="w-4 h-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"

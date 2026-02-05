@@ -21,7 +21,9 @@ const VendorRegistrationSuccess = () => {
         setIsDownloading(true);
         try {
             // Fetch full vendor data to ensure PDF has all details
-            const response = await vendorService.getVendor(vendorId);
+            // IMPORTANT: newly registered vendors don't have staff access, 
+            // so we MUST use getVendorProfile() which returns THEIR OWN data.
+            const response = await vendorService.getVendorProfile();
 
             if (!response.success) {
                 throw new Error(response.message || 'Failed to fetch vendor data');
@@ -198,21 +200,12 @@ const VendorRegistrationSuccess = () => {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <Button
-                            variant="outline"
-                            onClick={() => navigate('/')}
-                            className="flex items-center gap-2 h-12 px-8"
-                        >
-                            <Home className="w-4 h-4" />
-                            Back to Home
-                        </Button>
-
+                    <div className="flex flex-col gap-4 max-w-md mx-auto w-full">
                         <Button
                             variant="outline"
                             onClick={handleDownload}
                             disabled={isDownloading}
-                            className="flex items-center gap-2 h-12 px-8 border-green-200 text-green-700 hover:bg-green-50"
+                            className="flex items-center gap-2 h-12 px-8 border-green-200 text-green-700 hover:bg-green-50 w-full justify-center"
                         >
                             <Download className="w-4 h-4" />
                             {isDownloading ? 'Downloading...' : 'Download Enrollment Form'}
@@ -221,9 +214,18 @@ const VendorRegistrationSuccess = () => {
                         <Button
                             variant="default"
                             onClick={() => navigate('/onboarding')}
-                            className="bg-amber-500 hover:bg-amber-600 h-12 px-8"
+                            className="bg-amber-500 hover:bg-amber-600 h-12 px-8 w-full justify-center"
                         >
                             Submit Another Application
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            onClick={() => navigate('/')}
+                            className="flex items-center gap-2 h-12 px-8 w-full justify-center"
+                        >
+                            <Home className="w-4 h-4" />
+                            Back to Home
                         </Button>
                     </div>
 
