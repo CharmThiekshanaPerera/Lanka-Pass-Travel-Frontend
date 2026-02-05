@@ -683,6 +683,25 @@ class VendorService {
       return [];
     }
   }
+
+  // --- Email OTP ---
+  async sendEmailOtp(email: string): Promise<any> {
+    try {
+      const response = await api.post('/api/auth/send-email-otp', { email });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to send verification email');
+    }
+  }
+
+  async verifyEmailOtp(email: string, otpCode: string): Promise<any> {
+    try {
+      const response = await api.post('/api/auth/verify-email-otp', { email, otpCode });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Invalid or expired verification code');
+    }
+  }
 }
 
 export const vendorService = new VendorService();
