@@ -1076,7 +1076,7 @@ const AdminDashboard = () => {
               Reset User Password
             </DialogTitle>
             <DialogDescription>
-              Enter a new password for this account. This will instantly update their login credentials.
+              Enter a new password. If this user is a vendor, they will be required to change it at next login.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Onboarding from "./pages/Onboarding";
 import VendorDashboard from "./pages/VendorDashboard";
 import VendorLogin from "./pages/VendorLogin";
+import ForgotPassword from "./pages/ForgotPassword";
 import VendorProfile from "./pages/VendorProfile";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminLogin from "./pages/AdminLogin";
@@ -20,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import LoadingScreen from "@/components/LoadingScreen";
 import TestConnection from './components/TestConnection';
 import { SessionTimeoutModal } from "./components/auth/SessionTimeoutModal";
+import { ForcePasswordResetModal } from "./components/auth/ForcePasswordResetModal";
 
 
 // Initialize QueryClient
@@ -63,6 +65,7 @@ const AppContent = () => {
       <Sonner />
       <BrowserRouter>
         <SessionTimeoutModal />
+        <ForcePasswordResetModal />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Index />} />
@@ -71,6 +74,7 @@ const AppContent = () => {
 
           {/* Authentication Routes */}
           <Route path="/vendor-login" element={<VendorLogin />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           {/* <Route path="/admin/register" element={<AdminRegister />} /> */}
 

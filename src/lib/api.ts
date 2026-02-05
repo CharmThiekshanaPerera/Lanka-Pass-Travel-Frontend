@@ -28,8 +28,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Dispatch global event for session timeout on 401
-    if (error.response?.status === 401) {
+    // Dispatch global event for session timeout on 401/403, except for login attempts and password reset attempts
+    const isAuthEndpoint = error.config?.url?.includes('/login') ||
+      error.config?.url?.includes('/forgot-password') ||
+      error.config?.url?.includes('/change-password');
+
+    if ((error.response?.status === 401 || error.response?.status === 403) && !isAuthEndpoint) {
       window.dispatchEvent(new CustomEvent('auth:session-expired'));
     }
 
