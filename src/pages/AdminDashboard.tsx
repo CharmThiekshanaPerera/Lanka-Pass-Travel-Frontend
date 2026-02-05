@@ -1287,216 +1287,211 @@ const AdminDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Vendor ID</TableHead>
-                      <TableHead>Business Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Submitted</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-center">Public</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredVendors.map((vendor) => (
-                      <TableRow key={vendor.id}>
-                        <TableCell className="font-mono text-sm">{vendor.id}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                {vendor.businessName.split(" ").map((n) => n[0]).join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{vendor.businessName}</p>
-                              <p className="text-xs text-muted-foreground">{vendor.email}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{vendor.vendorType}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{vendor.contactPerson}</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{vendor.submittedAt}</span>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(vendor.status)}</TableCell>
-                        <TableCell className="text-center">
-                          {vendor.isPublic ? (
-                            <div className="flex justify-center">
-                              <Globe className="w-4 h-4 text-primary" />
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => handleViewDetails(vendor)}
-                              >
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setChatVendor(vendor);
-                                  setIsChatOpen(true);
-                                }}
-                              >
-                                <MessageCircle className="mr-2 h-4 w-4" />
-                                Message
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedVendor(vendor);
-                                  setAdminNotes(vendor.adminNotes || "");
-                                  // Open a specific notes dialog - assuming we reuse detail or new one
-                                  // For now, let's open details and switch to notes if possible, or build a specific one.
-                                  // User asked for "keep a text field open when in same thee dots"
-                                  // I'll implement a separate dialog for this below and open it here
-                                  setProcessingVendorId("NOTES-" + vendor.id);
-                                }}
-                              >
-                                <FileText className="mr-2 h-4 w-4" />
-                                Admin Notes
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  try {
-                                    // Fetch full vendor details first
-                                    const response = await vendorService.getVendor(vendor.id);
-                                    if (response.success) {
-                                      const fullVendor = response.vendor;
-                                      const services = response.services || [];
-                                      const detailedVendor = {
-                                        ...vendor,
-                                        services: services.map((s: any) => ({
-                                          id: s.id,
-                                          serviceName: s.service_name,
-                                          serviceCategory: s.service_category,
-                                          shortDescription: s.short_description,
-                                          durationValue: s.duration_value,
-                                          durationUnit: s.duration_unit,
-                                          groupSizeMin: s.group_size_min,
-                                          groupSizeMax: s.group_size_max,
-                                          retailPrice: s.retail_price,
-                                          currency: s.currency,
-                                          imageUrls: s.image_urls || [],
-                                          languagesOffered: s.languages_offered || [],
-                                          operatingDays: s.operating_days || [],
-                                          whatsIncluded: s.whats_included || '',
-                                          whatsNotIncluded: s.whats_not_included || '',
-                                          cancellationPolicy: s.cancellation_policy || '',
-                                          advanceBooking: s.advance_booking || 'N/A',
-                                          operatingHoursFrom: s.operating_hours_from,
-                                          operatingHoursFromPeriod: s.operating_hours_from_period,
-                                          operatingHoursTo: s.operating_hours_to,
-                                          operatingHoursToPeriod: s.operating_hours_to_period,
-                                          status: s.status
-                                        })),
-                                        pricing: services.map((s: any) => ({
-                                          currency: s.currency,
-                                          retailPrice: s.retail_price,
-                                          netPrice: (s.retail_price * 0.85).toFixed(2),
-                                          commission: s.commission_percent || 0,
-                                          dailyCapacity: s.daily_capacity
-                                        })),
-                                      };
-                                      generateVendorPDF(detailedVendor as any);
-                                      toast.success('PDF generated successfully!');
-                                    }
-                                  } catch (error) {
-                                    toast.error('Failed to generate PDF');
-                                  }
-                                }}
-                              >
-                                <FileDown className="mr-2 h-4 w-4" />
-                                Generate Document
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleEditClick(vendor)}
-                                className="gap-2"
-                              >
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleTogglePublic(vendor.id, !vendor.isPublic)}
-                                className="gap-2"
-                              >
-                                {vendor.isPublic ? (
-                                  <>
-                                    <UserMinus className="mr-2 h-4 w-4" />
-                                    Remove from Public
-                                  </>
-                                ) : (
-                                  <>
-                                    <Globe className="mr-2 h-4 w-4" />
-                                    Make Public
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                              <Separator className="my-1" />
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  if (vendor.userId) {
-                                    setResetPasswordUserId(vendor.userId);
-                                    setResetPasswordOpen(true);
-                                  } else {
-                                    toast.error("User ID not found for this vendor");
-                                  }
-                                }}
-                                className="text-amber-600"
-                              >
-                                <Shield className="mr-2 h-4 w-4" />
-                                Reset Password
-                              </DropdownMenuItem>
-                              <Separator className="my-1" />
-                              {vendor.status !== "approved" && (
-                                <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "approved")}>
-                                  <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                                  Approve
-                                </DropdownMenuItem>
-                              )}
-                              {vendor.status !== "freeze" && (
-                                <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "freeze")}>
-                                  <Ban className="mr-2 h-4 w-4 text-amber-500" />
-                                  Freeze
-                                </DropdownMenuItem>
-                              )}
-                              {vendor.status === "freeze" && (
-                                <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "active")}>
-                                  <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                                  Unfreeze (Active)
-                                </DropdownMenuItem>
-                              )}
-                              {vendor.status !== "terminated" && (
-                                <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "terminated")} className="text-red-600">
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Terminate
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                <div className="overflow-x-auto -mx-6 px-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[100px]">Vendor ID</TableHead>
+                        <TableHead className="min-w-[200px]">Business Name</TableHead>
+                        <TableHead className="min-w-[120px]">Type</TableHead>
+                        <TableHead className="min-w-[150px]">Contact</TableHead>
+                        <TableHead className="min-w-[150px]">Submitted</TableHead>
+                        <TableHead className="min-w-[120px]">Status</TableHead>
+                        <TableHead className="text-center min-w-[80px]">Public</TableHead>
+                        <TableHead className="text-right min-w-[100px]">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredVendors.map((vendor) => (
+                        <TableRow key={vendor.id}>
+                          <TableCell className="font-mono text-xs">{vendor.id}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="w-8 h-8">
+                                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                  {vendor.businessName.split(" ").map((n) => n[0]).join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="font-medium truncate max-w-[150px]">{vendor.businessName}</p>
+                                <p className="text-xs text-muted-foreground truncate max-w-[150px]">{vendor.email}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs">{vendor.vendorType}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">{vendor.contactPerson}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">{vendor.submittedAt}</span>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(vendor.status)}</TableCell>
+                          <TableCell className="text-center">
+                            {vendor.isPublic ? (
+                              <div className="flex justify-center">
+                                <Globe className="w-4 h-4 text-primary" />
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleViewDetails(vendor)}
+                                >
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setChatVendor(vendor);
+                                    setIsChatOpen(true);
+                                  }}
+                                >
+                                  <MessageCircle className="mr-2 h-4 w-4" />
+                                  Message
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedVendor(vendor);
+                                    setAdminNotes(vendor.adminNotes || "");
+                                    setProcessingVendorId("NOTES-" + vendor.id);
+                                  }}
+                                >
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  Admin Notes
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={async () => {
+                                    try {
+                                      const response = await vendorService.getVendor(vendor.id);
+                                      if (response.success) {
+                                        const detailedVendor = {
+                                          ...vendor,
+                                          services: (response.services || []).map((s: any) => ({
+                                            id: s.id,
+                                            serviceName: s.service_name,
+                                            serviceCategory: s.service_category,
+                                            shortDescription: s.short_description,
+                                            durationValue: s.duration_value,
+                                            durationUnit: s.duration_unit,
+                                            groupSizeMin: s.group_size_min,
+                                            groupSizeMax: s.group_size_max,
+                                            retailPrice: s.retail_price,
+                                            currency: s.currency,
+                                            imageUrls: s.image_urls || [],
+                                            languagesOffered: s.languages_offered || [],
+                                            operatingDays: s.operating_days || [],
+                                            whatsIncluded: s.whats_included || '',
+                                            whatsNotIncluded: s.whats_not_included || '',
+                                            cancellationPolicy: s.cancellation_policy || '',
+                                            advanceBooking: s.advance_booking || 'N/A',
+                                            operatingHoursFrom: s.operating_hours_from,
+                                            operatingHoursFromPeriod: s.operating_hours_from_period,
+                                            operatingHoursTo: s.operating_hours_to,
+                                            operatingHoursToPeriod: s.operating_hours_to_period,
+                                            status: s.status
+                                          })),
+                                          pricing: (response.services || []).map((s: any) => ({
+                                            currency: s.currency,
+                                            retailPrice: s.retail_price,
+                                            netPrice: (s.retail_price * 0.85).toFixed(2),
+                                            commission: s.commission_percent || 0,
+                                            dailyCapacity: s.daily_capacity
+                                          })),
+                                        };
+                                        generateVendorPDF(detailedVendor as any);
+                                        toast.success('PDF generated successfully!');
+                                      }
+                                    } catch (error) {
+                                      toast.error('Failed to generate PDF');
+                                    }
+                                  }}
+                                >
+                                  <FileDown className="mr-2 h-4 w-4" />
+                                  Generate Document
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleEditClick(vendor)}
+                                  className="gap-2"
+                                >
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Edit Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleTogglePublic(vendor.id, !vendor.isPublic)}
+                                  className="gap-2"
+                                >
+                                  {vendor.isPublic ? (
+                                    <>
+                                      <UserMinus className="mr-2 h-4 w-4" />
+                                      Remove from Public
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Globe className="mr-2 h-4 w-4" />
+                                      Make Public
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <Separator className="my-1" />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (vendor.userId) {
+                                      setResetPasswordUserId(vendor.userId);
+                                      setResetPasswordOpen(true);
+                                    } else {
+                                      toast.error("User ID not found for this vendor");
+                                    }
+                                  }}
+                                  className="text-amber-600"
+                                >
+                                  <Shield className="mr-2 h-4 w-4" />
+                                  Reset Password
+                                </DropdownMenuItem>
+                                <Separator className="my-1" />
+                                {vendor.status !== "approved" && (
+                                  <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "approved")}>
+                                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                                    Approve
+                                  </DropdownMenuItem>
+                                )}
+                                {vendor.status !== "freeze" && (
+                                  <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "freeze")}>
+                                    <Ban className="mr-2 h-4 w-4 text-amber-500" />
+                                    Freeze
+                                  </DropdownMenuItem>
+                                )}
+                                {vendor.status === "freeze" && (
+                                  <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "active")}>
+                                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                                    Unfreeze (Active)
+                                  </DropdownMenuItem>
+                                )}
+                                {vendor.status !== "terminated" && (
+                                  <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "terminated")} className="text-red-600">
+                                    <XCircle className="mr-2 h-4 w-4" />
+                                    Terminate
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1676,7 +1671,7 @@ const AdminDashboard = () => {
                   <TabsList className="grid w-full grid-cols-3 mb-6">
                     <TabsTrigger value="updates" className="gap-2">
                       <FileText className="w-4 h-4" />
-                      Updates
+                      <span className="hidden xs:inline">Updates</span>
                       {pendingRequestsCount > 0 && (
                         <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-700 px-1.5 py-0">
                           {pendingRequestsCount}
@@ -1685,7 +1680,7 @@ const AdminDashboard = () => {
                     </TabsTrigger>
                     <TabsTrigger value="registrations" className="gap-2">
                       <UserPlus className="w-4 h-4" />
-                      Registrations
+                      <span className="hidden xs:inline">Registrations</span>
                       {stats.pending > 0 && (
                         <Badge variant="secondary" className="ml-1 bg-yellow-100 text-yellow-700 px-1.5 py-0">
                           {stats.pending}
@@ -1694,7 +1689,7 @@ const AdminDashboard = () => {
                     </TabsTrigger>
                     <TabsTrigger value="chats" className="gap-2">
                       <MessageCircle className="w-4 h-4" />
-                      Chats
+                      <span className="hidden xs:inline">Chats</span>
                       {unreadCount > 0 && (
                         <Badge variant="destructive" className="ml-1 px-1.5 py-0">
                           {unreadCount}
@@ -1922,22 +1917,24 @@ const AdminDashboard = () => {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           {selectedVendor && (
             <>
-              <DialogHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12">
+              <DialogHeader className="p-4 sm:p-6 border-b shrink-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">
                       <AvatarFallback className="bg-primary/10 text-primary font-bold">
                         {selectedVendor.businessName.split(" ").map((n) => n[0]).join("")}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <DialogTitle className="text-xl">{selectedVendor.businessName}</DialogTitle>
-                      <DialogDescription>
+                    <div className="min-w-0">
+                      <DialogTitle className="text-lg sm:text-xl truncate max-w-[180px] xs:max-w-[250px] sm:max-w-none">
+                        {selectedVendor.businessName}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs sm:text-sm truncate">
                         {selectedVendor.legalName} • ID: {selectedVendor.id}
                       </DialogDescription>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-start sm:self-center">
                     {getStatusBadge(selectedVendor.status)}
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
@@ -1962,8 +1959,42 @@ const AdminDashboard = () => {
                 </div>
               </DialogHeader>
 
+              <div className="md:hidden mb-4">
+                <Select value={activeDetailTab} onValueChange={setActiveDetailTab}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Tab" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="overview">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4" />
+                        Overview
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="services">
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4" />
+                        Services
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="documents">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Documents
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="payment">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4" />
+                        Payment
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="mt-4">
-                <TabsList className="w-full justify-start">
+                <TabsList className="w-full justify-start hidden md:flex">
                   <TabsTrigger value="overview" className="gap-2">
                     <Building2 className="w-4 h-4" />
                     Overview
@@ -2619,12 +2650,13 @@ const AdminDashboard = () => {
 
 
                   {selectedVendor.status === "approved" && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => handleStatusChange(selectedVendor.id, "pending")}
                         disabled={processingVendorId === selectedVendor.id}
+                        className="w-full sm:w-auto"
                       >
                         Reset to Pending
                       </Button>
@@ -2637,7 +2669,7 @@ const AdminDashboard = () => {
                           setReasonDialogOpen(true);
                         }}
                         disabled={processingVendorId === selectedVendor.id}
-                        className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                        className="w-full sm:w-auto gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
                       >
                         <Ban className="w-4 h-4" />
                         Terminate
@@ -2651,17 +2683,17 @@ const AdminDashboard = () => {
                           setReasonDialogOpen(true);
                         }}
                         disabled={processingVendorId === selectedVendor.id}
-                        className="gap-2"
+                        className="w-full sm:w-auto gap-2"
                       >
                         <UserMinus className="w-4 h-4" />
                         Eject Vendor
                       </Button>
-                      <div className="flex-1" />
+                      <div className="hidden sm:block flex-1" />
                       <Button
                         type="button"
                         onClick={() => handleStatusChange(selectedVendor.id, "active")}
                         disabled={processingVendorId === selectedVendor.id}
-                        className="gap-2 bg-green-600 hover:bg-green-700"
+                        className="w-full sm:w-auto gap-2 bg-green-600 hover:bg-green-700"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         Activate Vendor
@@ -2670,7 +2702,7 @@ const AdminDashboard = () => {
                   )}
 
                   {selectedVendor.status === "pending" && (
-                    <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -2680,7 +2712,7 @@ const AdminDashboard = () => {
                           setReasonDialogOpen(true);
                         }}
                         disabled={processingVendorId === selectedVendor.id}
-                        className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                        className="w-full gap-2 text-red-600 border-red-200 hover:bg-red-50"
                       >
                         <XCircle className="w-4 h-4" />
                         Reject Application
@@ -2689,12 +2721,12 @@ const AdminDashboard = () => {
                         type="button"
                         onClick={() => handleStatusChange(selectedVendor.id, "approved")}
                         disabled={processingVendorId === selectedVendor.id}
-                        className="gap-2 bg-primary hover:bg-primary/90"
+                        className="w-full gap-2 bg-primary hover:bg-primary/90"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         Approve & Onboard
                       </Button>
-                    </>
+                    </div>
                   )}
 
 
