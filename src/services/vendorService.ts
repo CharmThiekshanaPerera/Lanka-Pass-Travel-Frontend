@@ -468,12 +468,16 @@ class VendorService {
     vendorId: string,
     status: string,
     reason?: string,
-    adminNotes?: string
+    adminNotes?: string,
+    isPublic?: boolean
   ): Promise<any> {
     try {
       const data: any = { status, status_reason: reason };
       if (adminNotes) {
         data.admin_notes = adminNotes;
+      }
+      if (isPublic !== undefined) {
+        data.is_public = isPublic;
       }
       const response = await api.patch(`/api/admin/vendors/${vendorId}`, data);
       return response.data;
@@ -625,6 +629,16 @@ class VendorService {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to delete file');
+    }
+  }
+
+  async getFeaturedVendors(): Promise<any[]> {
+    try {
+      const response = await api.get('/api/public/vendors/featured');
+      return response.data.vendors || [];
+    } catch (error: any) {
+      console.error("Failed to fetch featured vendors:", error);
+      return [];
     }
   }
 }
