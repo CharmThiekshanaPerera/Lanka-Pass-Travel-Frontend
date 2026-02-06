@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Eye, EyeOff, Mail, Lock, ArrowLeft, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/supabaseService";
 
 const AdminLogin = () => {
     const [email, setEmail] = useState("");
@@ -15,47 +16,42 @@ const AdminLogin = () => {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const { toast } = useToast();
-    const { login } = useAuth();
+    const { refreshUser } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
 
         try {
-            const result = await login(email, password);
-            if (result.success) {
+            // Use authService directly to check role BEFORE updating global context
+            // This prevents App.tsx from redirecting non-admins to vendor dashboard
+            const response = await authService.login({ email, password });
+
+            if (['admin', 'manager'].includes(response.user.role)) {
                 toast({
                     title: "Login Successful",
-                    description: "Welcome to the Admin Panel",
+                    description: `Welcome to the ${response.user.role === 'admin' ? 'Admin' : 'Manager'} Panel`,
                 });
 
-                // The user role check is handled in AuthContext/App, but we can double check here
-                const userStr = localStorage.getItem('user');
-                if (userStr) {
-                    const user = JSON.parse(userStr);
-                    if (user.role === 'admin') {
-                        navigate("/admin");
-                    } else {
-                        toast({
-                            variant: "destructive",
-                            title: "Access Denied",
-                            description: "This portal is for administrators only.",
-                        });
-                        // Optional: Logout if they are not an admin but tried to login here
-                    }
-                }
+                // Now verify with context to update global state and redirect
+                await refreshUser();
+                navigate("/admin");
             } else {
+                // If not admin/manager, clear constraints efficiently
+                authService.logout();
                 toast({
                     variant: "destructive",
-                    title: "Login Failed",
-                    description: result.error || "Invalid email or password",
+                    title: "Access Denied",
+                    description: "This account does not have staff privileges.",
                 });
             }
         } catch (error: any) {
+            console.error("Login logic error:", error);
+            const errorMsg = error.response?.data?.detail || "Invalid email or password";
             toast({
                 variant: "destructive",
-                title: "Login Error",
-                description: "An unexpected error occurred. Please try again.",
+                title: "Login Failed",
+                description: errorMsg,
             });
         } finally {
             setIsLoading(false);

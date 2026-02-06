@@ -53,6 +53,7 @@ export interface VendorRegistrationData {
   logo?: File;
   coverImage?: File;
   galleryImages?: File[];
+  promoVideo?: File;
 
   // Step 6: Payment Details
   bankName: string;
@@ -60,6 +61,8 @@ export interface VendorRegistrationData {
   accountHolderName: string;
   accountNumber: string;
   bankBranch: string;
+  payoutCycle?: string;
+  payoutDate?: string;
 
   // Step 7: Agreements
   acceptTerms: boolean;
@@ -68,6 +71,9 @@ export interface VendorRegistrationData {
   grantRights: boolean;
   confirmAccuracy: boolean;
   marketingPermission: boolean;
+
+  // Additional metadata
+  phoneVerified?: boolean;
 
   // Account Details
   password?: string;
@@ -149,6 +155,21 @@ class VendorService {
           groupSizeMax: Number(s.groupSizeMax) || 0,
           dailyCapacity: s.dailyCapacity ? Number(s.dailyCapacity) : undefined,
           retailPrice: Number(s.retailPrice) || 0,
+          // Operating hours
+          operatingHoursFrom: s.operatingHoursFrom,
+          operatingHoursFromPeriod: s.operatingHoursFromPeriod,
+          operatingHoursTo: s.operatingHoursTo,
+          operatingHoursToPeriod: s.operatingHoursToPeriod,
+          // Blackout dates
+          blackoutDates: (s.blackoutDates || []).map((date: Date) => date.toISOString()),
+          blackoutHolidays: s.blackoutHolidays || false,
+          // Additional service info (ensure they're included)
+          advanceBooking: s.advanceBooking,
+          advanceBookingOther: s.advanceBookingOther,
+          notSuitableFor: s.notSuitableFor,
+          importantInfo: s.importantInfo,
+          cancellationPolicy: s.cancellationPolicy,
+          accessibilityInfo: s.accessibilityInfo,
         })),
 
         // Step 6
@@ -157,6 +178,8 @@ class VendorService {
         accountHolderName: formData.accountHolderName,
         accountNumber: formData.accountNumber,
         bankBranch: formData.bankBranch,
+        payoutCycle: formData.payoutCycle,
+        payoutDate: formData.payoutDate,
 
         // Step 7
         acceptTerms: formData.acceptTerms,
@@ -165,6 +188,9 @@ class VendorService {
         grantRights: formData.grantRights,
         confirmAccuracy: formData.confirmAccuracy,
         marketingPermission: formData.marketingPermission,
+
+        // Additional metadata
+        phoneVerified: formData.phoneVerified || false,
 
         // Password - Generate if not provided
         password: formData.password || this.generateSecurePassword()
@@ -286,6 +312,18 @@ class VendorService {
             this.uploadFile(file, vendorId, 'gallery')
           );
         });
+      }
+
+      // Upload promo video
+      if (formData.promoVideo) {
+        console.log('Uploading promo video...');
+        uploadPromises.push(
+          this.uploadFile(
+            formData.promoVideo,
+            vendorId,
+            'promo_video'
+          )
+        );
       }
 
       // Upload service images
@@ -419,7 +457,6 @@ class VendorService {
     }
   }
 
-  // Check vendor registration status
   async checkRegistrationStatus(email: string): Promise<any> {
     try {
       // This would typically check if email is already registered
@@ -428,6 +465,56 @@ class VendorService {
       return response.data;
     } catch (error: any) {
       throw new Error('Failed to check registration status');
+    }
+  }
+
+  // --- Manager Management (Admin Only) ---
+
+  async getManagers(): Promise<{ success: boolean; managers: any[] }> {
+    try {
+      const response = await api.get('/api/admin/managers');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to fetch managers');
+    }
+  }
+
+  async createManager(data: any): Promise<any> {
+    try {
+      const response = await api.post('/api/admin/managers', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to create manager');
+    }
+  }
+
+  async deleteManager(userId: string): Promise<any> {
+    try {
+      const response = await api.delete(`/api/admin/managers/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to delete manager');
+    }
+  }
+
+  // --- Export Data ---
+  async exportVendors(): Promise<void> {
+    try {
+      const response = await api.get('/api/admin/export/vendors', {
+        responseType: 'blob'
+      });
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `vendors_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error: any) {
+      console.error("Export error:", error);
+      throw new Error(error.response?.data?.detail || 'Failed to export vendors');
     }
   }
 }

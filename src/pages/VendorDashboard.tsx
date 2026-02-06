@@ -41,6 +41,8 @@ import EarningsOverview from "@/components/dashboard/EarningsOverview";
 import CalendarView from "@/components/dashboard/CalendarView";
 import { vendorService } from "@/services/vendorService";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const VendorDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -49,6 +51,13 @@ const VendorDashboard = () => {
   const [stats, setStats] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/vendor-login");
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -222,7 +231,7 @@ const VendorDashboard = () => {
                   <DropdownMenuItem>Notification Preferences</DropdownMenuItem>
                   <DropdownMenuItem>Payment Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive">
+                  <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Logout
                   </DropdownMenuItem>
