@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       // Try to get user from localStorage first
       const storedUser = authService.getCurrentUser();
-      
+
       if (storedUser) {
         // Verify token with backend
         const response = await authService.verifyToken();
@@ -58,33 +58,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const login = async (email: string, password: string) => {
     try {
-      setLoading(true);
       const response = await authService.login({ email, password });
       setUser(response.user);
       return { success: true };
     } catch (error: any) {
-      return { 
-        success: false, 
-        error: error.response?.data?.detail || 'Login failed' 
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Login failed'
       };
-    } finally {
-      setLoading(false);
     }
   };
 
   const register = async (name: string, email: string, password: string, role: string) => {
     try {
-      setLoading(true);
       const response = await authService.register({ name, email, password, role });
       setUser(response.user);
       return { success: true };
     } catch (error: any) {
-      return { 
-        success: false, 
-        error: error.response?.data?.detail || 'Registration failed' 
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Registration failed'
       };
-    } finally {
-      setLoading(false);
     }
   };
 

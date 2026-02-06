@@ -120,14 +120,13 @@ const Testimonials = () => {
 
               {/* Content */}
               <div
-                className={`transition-all duration-300 ${
-                  isAnimating ? "opacity-0 translate-x-4" : "opacity-100 translate-x-0"
-                }`}
+                className={`transition-all duration-300 ${isAnimating ? "opacity-0 translate-x-4" : "opacity-100 translate-x-0"
+                  }`}
               >
                 {/* Rating */}
                 <div className="flex gap-1 mb-4">
                   {[...Array(testimonials[activeIndex].rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 fill-primary text-primary" />
+                    <Star key={i} className="w-5 h-5 fill-secondary text-secondary" />
                   ))}
                 </div>
 
@@ -138,7 +137,7 @@ const Testimonials = () => {
 
                 {/* Author */}
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-sunset flex items-center justify-center">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary via-ocean to-secondary flex items-center justify-center border border-white/20 shadow-lg">
                     <span className="text-primary-foreground font-semibold text-lg">
                       {testimonials[activeIndex].avatar}
                     </span>
@@ -164,9 +163,8 @@ const Testimonials = () => {
                           setIsAnimating(false);
                         }, 300);
                       }}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        activeIndex === index ? "w-6 bg-primary" : "bg-muted hover:bg-muted-foreground/50"
-                      }`}
+                      className={`w-2 h-2 rounded-full transition-all ${activeIndex === index ? "w-6 bg-primary" : "bg-muted hover:bg-muted-foreground/50"
+                        }`}
                     />
                   ))}
                 </div>

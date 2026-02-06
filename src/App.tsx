@@ -68,32 +68,9 @@ const AppContent = () => {
           <Route path="/vendor-registration-success" element={<VendorRegistrationSuccess />} />
 
           {/* Authentication Routes */}
-          <Route
-            path="/vendor-login"
-            element={
-              !user ? (
-                <VendorLogin />
-              ) : (
-                <Navigate to={['admin', 'manager'].includes(user.role) ? "/admin" : "/vendor-dashboard"} />
-              )
-            }
-          />
-          <Route
-            path="/admin/login"
-            element={
-              !user ? (
-                <AdminLogin />
-              ) : (
-                <Navigate to={['admin', 'manager'].includes(user.role) ? "/admin" : "/vendor-dashboard"} />
-              )
-            }
-          />
-          <Route
-            path="/admin/register"
-            element={
-              !user ? <AdminRegister /> : <Navigate to="/admin" />
-            }
-          />
+          <Route path="/vendor-login" element={<VendorLogin />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/register" element={<AdminRegister />} />
 
           {/* Protected Routes - Vendor Access */}
           <Route
@@ -124,7 +101,7 @@ const AppContent = () => {
             element={
               <ProtectedRoute loginPath="/admin/login">
                 <RoleBasedRoute allowedRoles={['admin', 'manager']}>
-                  <AdminDashboard />
+                  <AdminDashboard /> 
                 </RoleBasedRoute>
               </ProtectedRoute>
             }
