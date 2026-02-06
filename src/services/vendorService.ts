@@ -467,11 +467,15 @@ class VendorService {
   async updateVendorStatus(
     vendorId: string,
     status: string,
-    reason?: string
+    reason?: string,
+    adminNotes?: string
   ): Promise<any> {
     try {
       const data: any = { status, status_reason: reason };
-      const response = await api.patch(`/api/admin/vendors/${vendorId}`, data);
+      if (adminNotes) {
+        data.admin_notes = adminNotes;
+      }
+      const response = await api.patch(`/api/vendor/${vendorId}/status`, data); // Note: Fix URL if it was different
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to update vendor status');
@@ -534,6 +538,15 @@ class VendorService {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to delete service');
+    }
+  }
+
+  async updateServiceStatus(serviceId: string, status: string): Promise<any> {
+    try {
+      const response = await api.patch(`/api/vendor/services/${serviceId}/status`, { status });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to update service status');
     }
   }
 
