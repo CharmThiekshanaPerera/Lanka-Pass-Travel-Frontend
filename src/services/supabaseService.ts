@@ -6,6 +6,7 @@ export interface User {
   name: string;
   role: 'vendor' | 'admin' | 'user' | 'manager';
   is_active: boolean;
+  requires_password_reset?: boolean;
   created_at: string;
   updated_at: string;
 }

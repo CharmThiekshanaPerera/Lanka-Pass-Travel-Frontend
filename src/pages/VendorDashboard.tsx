@@ -20,7 +20,8 @@ import {
   User,
   Loader2,
   MessageCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  KeyRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -66,6 +67,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 
 const VendorDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -80,6 +82,7 @@ const VendorDashboard = () => {
   const navigate = useNavigate();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogoutClick = () => {
@@ -296,14 +299,15 @@ const VendorDashboard = () => {
                     <Settings className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Settings</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-                  <DropdownMenuItem>Notification Preferences</DropdownMenuItem>
-                  <DropdownMenuItem>Payment Settings</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowChangePassword(true)}>
+                    <KeyRound className="h-4 w-4 mr-2" />
+                    Change Password
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive" onClick={handleLogoutClick}>
+                  <DropdownMenuItem className="text-destructive font-medium" onClick={handleLogoutClick}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Logout
                   </DropdownMenuItem>
@@ -337,6 +341,12 @@ const VendorDashboard = () => {
           )}
         </main>
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        open={showChangePassword}
+        onOpenChange={setShowChangePassword}
+      />
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
