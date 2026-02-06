@@ -21,7 +21,9 @@ const AdminLogin = () => {
     useEffect(() => {
         const token = localStorage.getItem('access_token');
         if (user && token && !isLoading) {
-            if (['admin', 'manager'].includes(user.role)) {
+            if (user.role === 'admin') {
+                navigate("/admin");
+            } else if (user.role === 'manager') {
                 navigate("/admin");
             } else {
                 navigate("/vendor-dashboard");
@@ -41,7 +43,7 @@ const AdminLogin = () => {
             if (['admin', 'manager'].includes(response.user.role)) {
                 toast({
                     title: "Login Successful",
-                    description: `Welcome to the ${response.user.role === 'admin' ? 'Admin' : 'Manager'} Panel`,
+                    description: `Welcome to the ${response.user.role === 'admin' ? 'Admin' : 'Manager'} Control Center`,
                 });
 
                 // Now verify with context to update global state and redirect
@@ -170,16 +172,7 @@ const AdminLogin = () => {
                             </Button>
                         </form>
 
-                        {/* Registration Link (Only if needed, usually admins are created by other admins) */}
-                        <p className="text-center text-sm text-muted-foreground mt-6">
-                            Need an admin account?{" "}
-                            <Link
-                                to="/admin/register"
-                                className="text-primary font-semibold hover:underline"
-                            >
-                                Request Access
-                            </Link>
-                        </p>
+                        {/* Registration Link Hidden */}
                     </CardContent>
                 </Card>
 
