@@ -13,6 +13,8 @@ import VendorDashboard from "./pages/VendorDashboard";
 import VendorLogin from "./pages/VendorLogin";
 import VendorProfile from "./pages/VendorProfile";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminLogin from "./pages/AdminLogin";
+import AdminRegister from "./pages/AdminRegister";
 import VendorRegistrationSuccess from "./pages/VendorRegistrationSuccess";
 import NotFound from "./pages/NotFound";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -70,6 +72,18 @@ const AppContent = () => {
             path="/vendor-login"
             element={
               !user ? <VendorLogin /> : <Navigate to="/vendor-dashboard" />
+            }
+          />
+          <Route
+            path="/admin/login"
+            element={
+              !user ? <AdminLogin /> : <Navigate to="/admin" />
+            }
+          />
+          <Route
+            path="/admin/register"
+            element={
+              !user ? <AdminRegister /> : <Navigate to="/admin" />
             }
           />
 

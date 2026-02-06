@@ -1,36 +1,36 @@
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Package, Users, Star, Eye } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-const DashboardStats = () => {
-  const stats = [
+const DashboardStats = ({ stats, serviceCount }: { stats: any, serviceCount: number }) => {
+  const displayStats = [
     {
       title: "Total Earnings",
-      value: "LKR 845,320",
-      change: "+12.5%",
+      value: stats ? `LKR ${stats.total_earnings.toLocaleString()}` : "LKR 0",
+      change: "+0%",
       trend: "up",
       icon: DollarSign,
       color: "bg-primary/10 text-primary"
     },
     {
       title: "Total Bookings",
-      value: "156",
-      change: "+8.2%",
+      value: stats ? stats.total_bookings.toString() : "0",
+      change: "+0%",
       trend: "up",
       icon: Calendar,
       color: "bg-secondary/10 text-secondary"
     },
     {
       title: "Active Services",
-      value: "8",
-      change: "+2",
+      value: serviceCount.toString(),
+      change: "+0",
       trend: "up",
       icon: Package,
       color: "bg-accent/10 text-accent"
     },
     {
-      title: "Profile Views",
-      value: "2,847",
-      change: "+24.3%",
+      title: "Pending Bookings",
+      value: stats ? stats.pending_bookings.toString() : "0",
+      change: "0",
       trend: "up",
       icon: Eye,
       color: "bg-muted-foreground/10 text-muted-foreground"
@@ -39,7 +39,7 @@ const DashboardStats = () => {
 
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map((stat, index) => (
+      {displayStats.map((stat, index) => (
         <Card key={index} className="overflow-hidden">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ const Onboarding = () => {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [formData, setFormData] = useState<any>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   const updateFormData = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
@@ -137,7 +138,14 @@ const Onboarding = () => {
     try {
       const result = await vendorService.registerVendor(formData);
       if (result.success) {
-        toast.success("Application submitted successfully! We'll be in touch within 48 hours.");
+        toast.success("Application submitted successfully!");
+        navigate("/vendor-registration-success", {
+          state: {
+            vendorId: result.vendor_id,
+            businessName: formData.businessName,
+            email: formData.email
+          }
+        });
       } else {
         toast.error(result.message || "Registration failed. Please try again.");
       }
