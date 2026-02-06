@@ -56,20 +56,22 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
     }
   };
 
-  const sendVerificationEmail = () => {
+  const sendVerificationEmail = async () => {
     if (!formData.email) {
       setVerificationError("Please check your email address first");
       return;
     }
 
-    console.log("Sending verification email to:", formData.email);
-    setIsVerificationSent(true);
-    setResendCooldown(900); // 15 minutes cooldown (900 seconds)
-
-    // In a real app, you would make an API call here:
-    // await sendVerificationEmail(formData.email);
-
-    setVerificationSuccess(`Verification code sent to ${formData.email}. Code expires in 15 minutes.`);
+    try {
+      console.log("Sending verification email to:", formData.email);
+      await vendorService.sendEmailOtp(formData.email);
+      setIsVerificationSent(true);
+      setResendCooldown(300); // 5 minutes cooldown (300 seconds) - adjusted from 15 mins for better UX
+      setVerificationSuccess(`Verification code sent to ${formData.email}. Code expires in 15 minutes.`);
+    } catch (error: any) {
+      setVerificationError(error.message || "Failed to send verification email");
+      setIsVerificationSent(false);
+    }
   };
 
   const handleResendVerification = () => {
@@ -90,13 +92,13 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
     setVerificationError("");
 
     try {
-      // For demo purposes, assume code is valid if it's 6 digits and the last digit is not 0
-      const isValid = verificationCode.length === 6 && verificationCode.charAt(5) !== '0';
+      // Step 1: Verify the email OTP via backend
+      const verifyResult = await vendorService.verifyEmailOtp(formData.email, verificationCode);
 
-      if (isValid) {
+      if (verifyResult.success) {
         setVerificationSuccess("Email verified successfully! Submitting your application...");
 
-        // Submit vendor registration to backend
+        // Step 2: Submit vendor registration to backend
         const result = await vendorService.registerVendor(formData);
 
         if (result.success) {
@@ -125,8 +127,8 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
         setIsVerifying(false);
       }
     } catch (error: any) {
-      console.error("Submission error:", error);
-      setVerificationError(`Submission failed: ${error.message}`);
+      console.error("Verification/Submission error:", error);
+      setVerificationError(error.message || "An error occurred during verification.");
       setIsVerifying(false);
     }
   };
