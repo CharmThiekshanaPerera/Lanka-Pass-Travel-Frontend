@@ -8,6 +8,7 @@ import SupportContact from "./SupportContact";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { vendorService } from "@/services/vendorService";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Step7Props {
   formData: any;
@@ -18,6 +19,7 @@ interface Step7Props {
 
 const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: Step7Props) => {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerificationSent, setIsVerificationSent] = useState(false);
@@ -98,6 +100,9 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
         const result = await vendorService.registerVendor(formData);
 
         if (result.success) {
+          // Force update auth context to recognize the new session
+          await refreshUser();
+
           setVerificationSuccess("Application submitted successfully! Redirecting...");
 
           // Navigate to success page

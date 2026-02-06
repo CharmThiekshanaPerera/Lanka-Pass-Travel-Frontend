@@ -4,12 +4,14 @@ import { api } from '../lib/api';
 export interface ServiceData {
   serviceName: string;
   serviceCategory: string;
+  serviceCategoryOther?: string;
   shortDescription: string;
   whatsIncluded?: string;
   whatsNotIncluded?: string;
   durationValue: number;
   durationUnit: string;
   languagesOffered: string[];
+  languagesOther?: string;
   groupSizeMin: number;
   groupSizeMax: number;
   dailyCapacity?: number;
@@ -17,10 +19,18 @@ export interface ServiceData {
   locationsCovered: string[];
   retailPrice: number;
   currency: string;
+  advanceBooking?: string;
+  advanceBookingOther?: string;
   notSuitableFor?: string;
   importantInfo?: string;
   cancellationPolicy?: string;
   accessibilityInfo?: string;
+  operatingHoursFrom?: string;
+  operatingHoursFromPeriod?: string;
+  operatingHoursTo?: string;
+  operatingHoursToPeriod?: string;
+  blackoutDates?: any[];
+  blackoutHolidays?: boolean;
   serviceImages?: File[];
 }
 
@@ -61,8 +71,7 @@ export interface VendorRegistrationData {
   accountHolderName: string;
   accountNumber: string;
   bankBranch: string;
-  payoutCycle?: string;
-  payoutDate?: string;
+
 
   // Step 7: Agreements
   acceptTerms: boolean;
@@ -86,6 +95,8 @@ export interface VendorResponse {
   user_id: string;
   status: string;
   next_steps: string;
+  access_token?: string;
+  user?: any;
 }
 
 export interface FileUploadResponse {
@@ -178,8 +189,7 @@ class VendorService {
         accountHolderName: formData.accountHolderName,
         accountNumber: formData.accountNumber,
         bankBranch: formData.bankBranch,
-        payoutCycle: formData.payoutCycle,
-        payoutDate: formData.payoutDate,
+
 
         // Step 7
         acceptTerms: formData.acceptTerms,
@@ -192,8 +202,8 @@ class VendorService {
         // Additional metadata
         phoneVerified: formData.phoneVerified || false,
 
-        // Password - Generate if not provided
-        password: formData.password || this.generateSecurePassword()
+        // Password - Default to '123456' if not provided
+        password: formData.password || "123456"
       };
 
       // Submit to backend
@@ -201,6 +211,32 @@ class VendorService {
       const response = await api.post<VendorResponse>('/api/vendor/register', submissionData);
 
       console.log('Vendor registration successful:', response.data);
+
+      // Save token if present (Fix for 401 reload issue during upload)
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+      } else if (submissionData.email && submissionData.password) {
+        // Fallback: Try to login automatically if no token returned
+        try {
+          console.log('Attempting auto-login for file uploads...');
+          const loginRes = await api.post('/api/auth/login', {
+            email: submissionData.email,
+            password: submissionData.password
+          });
+
+          if (loginRes.data.access_token) {
+            localStorage.setItem('access_token', loginRes.data.access_token);
+            if (loginRes.data.user) {
+              localStorage.setItem('user', JSON.stringify(loginRes.data.user));
+            }
+          }
+        } catch (authError) {
+          console.error('Auto-login failed, file uploads may fail with 401:', authError);
+        }
+      }
 
       // Upload files if vendor was created successfully
       if (response.data.success && response.data.vendor_id) {
@@ -364,7 +400,8 @@ class VendorService {
     file: File,
     vendorId: string,
     fileType: string,
-    serviceIndex?: number
+    serviceIndex?: number,
+    serviceId?: string
   ): Promise<FileUploadResponse> {
     try {
       const formData = new FormData();
@@ -374,6 +411,10 @@ class VendorService {
 
       if (serviceIndex !== undefined) {
         formData.append('service_index', serviceIndex.toString());
+      }
+
+      if (serviceId) {
+        formData.append('service_id', serviceId);
       }
 
       const response = await api.post<FileUploadResponse>(
@@ -457,6 +498,45 @@ class VendorService {
     }
   }
 
+  // Update current vendor's profile
+  async updateVendorProfile(data: any): Promise<any> {
+    try {
+      const response = await api.put('/api/vendor/profile', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to update vendor profile');
+    }
+  }
+
+  // --- Service Management ---
+
+  async createService(data: any): Promise<any> {
+    try {
+      const response = await api.post('/api/vendor/services', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to create service');
+    }
+  }
+
+  async updateService(serviceId: string, data: any): Promise<any> {
+    try {
+      const response = await api.put(`/api/vendor/services/${serviceId}`, data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to update service');
+    }
+  }
+
+  async deleteService(serviceId: string): Promise<any> {
+    try {
+      const response = await api.delete(`/api/vendor/services/${serviceId}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to delete service');
+    }
+  }
+
   async checkRegistrationStatus(email: string): Promise<any> {
     try {
       // This would typically check if email is already registered
@@ -515,6 +595,23 @@ class VendorService {
     } catch (error: any) {
       console.error("Export error:", error);
       throw new Error(error.response?.data?.detail || 'Failed to export vendors');
+    }
+  }
+
+  // Delete vendor file
+  async deleteVendorFile(vendorId: string, fileUrl: string, fileType: string, serviceId?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.delete('/api/vendor/delete-file', {
+        data: {
+          vendor_id: vendorId,
+          file_url: fileUrl,
+          file_type: fileType,
+          service_id: serviceId
+        }
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to delete file');
     }
   }
 }

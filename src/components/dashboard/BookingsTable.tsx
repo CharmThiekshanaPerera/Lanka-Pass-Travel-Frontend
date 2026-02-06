@@ -27,100 +27,9 @@ interface BookingsTableProps {
 
 const BookingsTable = ({ limit, compact = false }: BookingsTableProps) => {
   const [filter, setFilter] = useState("all");
-  
-  const bookings = [
-    {
-      id: "BK-2024-001",
-      customer: "John Smith",
-      email: "john.smith@email.com",
-      phone: "+1 234 567 890",
-      service: "Sigiriya Rock Fortress Day Tour",
-      date: "Jan 15, 2026",
-      time: "8:00 AM",
-      guests: 4,
-      amount: "LKR 60,000",
-      status: "confirmed",
-      bookedOn: "Jan 10, 2026"
-    },
-    {
-      id: "BK-2024-002",
-      customer: "Emma Wilson",
-      email: "emma.w@email.com",
-      phone: "+44 789 012 345",
-      service: "Whale Watching Mirissa",
-      date: "Jan 16, 2026",
-      time: "6:00 AM",
-      guests: 2,
-      amount: "LKR 17,000",
-      status: "pending",
-      bookedOn: "Jan 11, 2026"
-    },
-    {
-      id: "BK-2024-003",
-      customer: "Michael Chen",
-      email: "m.chen@email.com",
-      phone: "+86 123 456 789",
-      service: "Colombo City Walking Tour",
-      date: "Jan 14, 2026",
-      time: "9:00 AM",
-      guests: 6,
-      amount: "LKR 30,000",
-      status: "completed",
-      bookedOn: "Jan 8, 2026"
-    },
-    {
-      id: "BK-2024-004",
-      customer: "Sarah Johnson",
-      email: "sarah.j@email.com",
-      phone: "+1 456 789 012",
-      service: "Traditional Cooking Class",
-      date: "Jan 18, 2026",
-      time: "10:00 AM",
-      guests: 3,
-      amount: "LKR 19,500",
-      status: "confirmed",
-      bookedOn: "Jan 12, 2026"
-    },
-    {
-      id: "BK-2024-005",
-      customer: "David Brown",
-      email: "d.brown@email.com",
-      phone: "+61 234 567 890",
-      service: "Ella Adventure Package",
-      date: "Jan 20, 2026",
-      time: "7:00 AM",
-      guests: 2,
-      amount: "LKR 44,000",
-      status: "cancelled",
-      bookedOn: "Jan 5, 2026"
-    },
-    {
-      id: "BK-2024-006",
-      customer: "Lisa Anderson",
-      email: "lisa.a@email.com",
-      phone: "+1 345 678 901",
-      service: "Sigiriya Rock Fortress Day Tour",
-      date: "Jan 22, 2026",
-      time: "8:00 AM",
-      guests: 5,
-      amount: "LKR 75,000",
-      status: "pending",
-      bookedOn: "Jan 13, 2026"
-    },
-    {
-      id: "BK-2024-007",
-      customer: "James Taylor",
-      email: "james.t@email.com",
-      phone: "+44 567 890 123",
-      service: "Whale Watching Mirissa",
-      date: "Jan 17, 2026",
-      time: "6:00 AM",
-      guests: 4,
-      amount: "LKR 34,000",
-      status: "confirmed",
-      bookedOn: "Jan 9, 2026"
-    },
-  ];
+
+  // TODO: Fetch real bookings from API
+  const bookings: any[] = [];
 
   const filteredBookings = bookings.filter(booking => {
     if (filter === "all") return true;
@@ -196,77 +105,79 @@ const BookingsTable = ({ limit, compact = false }: BookingsTableProps) => {
       </div>
 
       {/* Table */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Booking ID</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead>Date & Time</TableHead>
-              <TableHead>Guests</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {displayBookings.map((booking) => (
-              <TableRow key={booking.id}>
-                <TableCell className="font-medium">{booking.id}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                        {booking.customer.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-sm">{booking.customer}</p>
-                      <p className="text-xs text-muted-foreground">{booking.email}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <p className="text-sm line-clamp-1 max-w-[200px]">{booking.service}</p>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="text-sm">{booking.date}</span>
-                    <span className="text-xs text-muted-foreground">{booking.time}</span>
-                  </div>
-                </TableCell>
-                <TableCell>{booking.guests}</TableCell>
-                <TableCell className="font-medium">{booking.amount}</TableCell>
-                <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="gap-2">
-                        <Eye className="h-4 w-4" /> View Details
-                      </DropdownMenuItem>
-                      {booking.status === "pending" && (
-                        <>
-                          <DropdownMenuItem className="gap-2 text-green-600">
-                            <Check className="h-4 w-4" /> Confirm
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-destructive">
-                            <X className="h-4 w-4" /> Decline
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Booking ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Guests</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {displayBookings.map((booking) => (
+                <TableRow key={booking.id}>
+                  <TableCell className="font-medium">{booking.id}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          {booking.customer.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">{booking.customer}</p>
+                        <p className="text-xs text-muted-foreground">{booking.email}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <p className="text-sm line-clamp-1 max-w-[200px]">{booking.service}</p>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="text-sm">{booking.date}</span>
+                      <span className="text-xs text-muted-foreground">{booking.time}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{booking.guests}</TableCell>
+                  <TableCell className="font-medium">{booking.amount}</TableCell>
+                  <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem className="gap-2">
+                          <Eye className="h-4 w-4" /> View Details
+                        </DropdownMenuItem>
+                        {booking.status === "pending" && (
+                          <>
+                            <DropdownMenuItem className="gap-2 text-green-600">
+                              <Check className="h-4 w-4" /> Confirm
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 text-destructive">
+                              <X className="h-4 w-4" /> Decline
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       {/* Summary Stats */}

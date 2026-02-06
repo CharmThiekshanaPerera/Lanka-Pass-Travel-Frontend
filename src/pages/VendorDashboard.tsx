@@ -17,7 +17,10 @@ import {
   LogOut,
   Menu,
   X,
-  Loader2
+  User,
+  Loader2,
+  MessageCircle,
+  Image as ImageIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -32,6 +35,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import DashboardStats from "@/components/dashboard/DashboardStats";
@@ -39,10 +52,20 @@ import ServicesList from "@/components/dashboard/ServicesList";
 import BookingsTable from "@/components/dashboard/BookingsTable";
 import EarningsOverview from "@/components/dashboard/EarningsOverview";
 import CalendarView from "@/components/dashboard/CalendarView";
+import ProfileForm from "@/components/dashboard/ProfileForm";
+import MediaGallery from "@/components/dashboard/MediaGallery";
+import SupportChatTab from "@/components/dashboard/SupportChat";
 import { vendorService } from "@/services/vendorService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { chatService } from "@/services/chatService";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const VendorDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -50,56 +73,89 @@ const VendorDashboard = () => {
   const [vendorInfo, setVendorInfo] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
+  const [fullVendorData, setFullVendorData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/vendor-login");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      logout();
+      navigate("/vendor-login");
+      setShowLogoutConfirm(false);
+      setIsLoggingOut(false);
+    }, 2500);
+  };
+
+  const refreshData = async () => {
+    try {
+      const [profileRes, statsRes] = await Promise.all([
+        vendorService.getVendorProfile(),
+        vendorService.getVendorStats()
+      ]);
+
+      if (profileRes.success) {
+        const v = profileRes.vendor;
+        setFullVendorData(v);
+        setVendorInfo({
+          name: v.contact_person,
+          businessName: v.business_name,
+          email: v.email,
+          avatar: "",
+          status: v.status,
+          memberSince: new Date(v.created_at).toLocaleString('default', { month: 'long', year: 'numeric' })
+        });
+        setServices(profileRes.services || []);
+      }
+
+      if (statsRes.success) {
+        setStats(statsRes.stats);
+      }
+    } catch (error) {
+      console.error("Failed to refresh dashboard data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await chatService.getVendorUnreadCount();
+      if (res.success) {
+        setUnreadCount(res.unread_count);
+      }
+    } catch (error) {
+      console.error("Failed to fetch unread count:", error);
+    }
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [profileRes, statsRes] = await Promise.all([
-          vendorService.getVendorProfile(),
-          vendorService.getVendorStats()
-        ]);
+    refreshData();
+    fetchUnreadCount();
 
-        if (profileRes.success) {
-          const v = profileRes.vendor;
-          setVendorInfo({
-            name: v.contact_person,
-            businessName: v.business_name,
-            email: v.email,
-            avatar: "",
-            status: v.status,
-            memberSince: new Date(v.created_at).toLocaleString('default', { month: 'long', year: 'numeric' })
-          });
-          setServices(profileRes.services || []);
-        }
-
-        if (statsRes.success) {
-          setStats(statsRes.stats);
-        }
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-        toast.error("Failed to load dashboard data");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
+    // Poll for unread count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const navItems = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "profile", label: "Profile", icon: User },
     { id: "services", label: "My Services", icon: Package },
+    { id: "media", label: "Media", icon: ImageIcon },
     { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "bookings", label: "Bookings", icon: Package },
     { id: "earnings", label: "Earnings", icon: DollarSign },
+    { id: "support", label: "Support", icon: MessageCircle },
   ];
 
   if (isLoading) {
@@ -213,10 +269,29 @@ const VendorDashboard = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative"
+                      onClick={() => setActiveTab("support")}
+                    >
+                      <Bell className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{unreadCount > 0 ? `${unreadCount} unread messages` : "No unread messages"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -231,7 +306,7 @@ const VendorDashboard = () => {
                   <DropdownMenuItem>Notification Preferences</DropdownMenuItem>
                   <DropdownMenuItem>Payment Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
+                  <DropdownMenuItem className="text-destructive" onClick={handleLogoutClick}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Logout
                   </DropdownMenuItem>
@@ -264,19 +339,64 @@ const VendorDashboard = () => {
                     <CardDescription>Quick calendar view</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <CalendarView compact />
+                    <CalendarView compact services={services} />
                   </CardContent>
                 </Card>
               </div>
             </div>
           )}
 
-          {activeTab === "services" && <ServicesList services={services} />}
-          {activeTab === "calendar" && <CalendarView />}
+          {activeTab === "services" && <ServicesList services={services} onRefresh={refreshData} />}
+          {activeTab === "media" && <MediaGallery vendorId={fullVendorData?.id} />}
+          {activeTab === "calendar" && <CalendarView services={services} />}
           {activeTab === "bookings" && <BookingsTable />}
           {activeTab === "earnings" && <EarningsOverview />}
+          {activeTab === "support" && <SupportChatTab vendorId={fullVendorData?.id} />}
+          {activeTab === "profile" && fullVendorData && (
+            <div className="max-w-4xl mx-auto">
+              <ProfileForm
+                initialData={fullVendorData}
+                onUpdate={() => {
+                  toast.success("Profile updated successfully");
+                  refreshData();
+                }}
+              />
+            </div>
+          )}
         </main>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to logout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will need to sign in again to access your dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoggingOut}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleLogoutConfirm();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                "Logout"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

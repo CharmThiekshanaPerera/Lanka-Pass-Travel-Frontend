@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   Table,
   TableBody,
@@ -54,14 +56,41 @@ import {
   Filter,
   Download,
   LogOut,
-  Loader2,
   UserPlus,
   Trash2,
+  Loader2,
+  MessageCircle,
+  Ban,
+  UserMinus,
+  Bell,
+
+  Send,
+  Paperclip,
+  Maximize2,
+  ChevronRight,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { vendorService } from "@/services/vendorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import { AdminChatModal } from "@/components/admin/AdminChatModal";
+import { chatService, ChatSummary } from "@/services/chatService";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Define the shape of our frontend vendor object (mapping from backend)
 interface VendorSubmission {
@@ -90,9 +119,7 @@ interface VendorSubmission {
   accountHolderName: string;
   accountNumber: string;
   bankBranch: string;
-  payoutFrequency: string; // Not in current backend, default or map
-  payoutCycle?: string;
-  payoutDate?: string;
+
   phoneVerified?: boolean;
   documents: {
     businessRegistration: string;
@@ -123,6 +150,20 @@ const AdminDashboard = () => {
   const [processingVendorId, setProcessingVendorId] = useState<string | null>(null);
   const [updatingServiceId, setUpdatingServiceId] = useState<string | null>(null);
   const [commissionValues, setCommissionValues] = useState<{ [key: string]: string }>({});
+
+  // Action Dialog State
+  const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ type: 'reject' | 'terminate' | 'eject'; vendorId: string } | null>(null);
+  const [actionReason, setActionReason] = useState("");
+
+
+  // Chat State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatVendor, setChatVendor] = useState<VendorSubmission | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [chatSummaries, setChatSummaries] = useState<ChatSummary[]>([]);
+  const [isLoadingSummaries, setIsLoadingSummaries] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const handleCommissionChange = (serviceId: string, value: string) => {
     setCommissionValues(prev => ({ ...prev, [serviceId]: value }));
@@ -155,15 +196,52 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await chatService.getUnreadCount();
+      if (res.success) {
+        setUnreadCount(res.unread_count);
+      }
+    } catch (error) {
+      console.error("Failed to fetch admin unread count:", error);
+    }
+  };
+
+  const fetchChatSummaries = async () => {
+    setIsLoadingSummaries(true);
+    try {
+      const res = await chatService.getAdminChatSummary();
+      if (res.success) {
+        setChatSummaries(res.summary);
+      }
+    } catch (error) {
+      console.error("Failed to fetch chat summaries:", error);
+    } finally {
+      setIsLoadingSummaries(false);
+    }
+  };
+
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const isAdmin = user?.role === 'admin';
   const isManager = user?.role === 'manager';
 
-  const handleLogout = () => {
-    logout();
-    navigate("/admin/login");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      logout();
+      navigate("/admin/login");
+      setShowLogoutConfirm(false);
+      setIsLoggingOut(false);
+    }, 2500);
   };
 
   const fetchVendors = async () => {
@@ -197,9 +275,7 @@ const AdminDashboard = () => {
           accountHolderName: v.account_holder_name || "",
           accountNumber: v.account_number || "",
           bankBranch: v.bank_branch || "",
-          payoutFrequency: "monthly",
-          payoutCycle: v.payout_cycle,
-          payoutDate: v.payout_date,
+
           phoneVerified: v.phone_verified || false,
           documents: {
             businessRegistration: v.reg_certificate_url,
@@ -282,6 +358,23 @@ const AdminDashboard = () => {
       fetchManagers();
     }
   }, [user]);
+
+  // Combined polling for counts and summaries
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchUnreadCount();
+      if (activeTab === "support") {
+        fetchChatSummaries();
+      }
+    };
+
+    handleRefresh(); // Initial fetch
+
+    const intervalTime = activeTab === "support" ? 10000 : 15000;
+    const interval = setInterval(handleRefresh, intervalTime);
+
+    return () => clearInterval(interval);
+  }, [user, activeTab]);
 
   const filteredVendors = vendors.filter((vendor) => {
     const matchesSearch =
@@ -396,6 +489,27 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleStatusChange = async (vendorId: string, status: string, reason?: string) => {
+    try {
+      setProcessingVendorId(vendorId);
+      await vendorService.updateVendorStatus(vendorId, status, reason);
+      setVendors((prev) =>
+        prev.map((v) =>
+          v.id === vendorId ? { ...v, status: status, rejectionReason: reason } : v
+        )
+      );
+      if (selectedVendor && selectedVendor.id === vendorId) {
+        setSelectedVendor({ ...selectedVendor, status: status, rejectionReason: reason });
+      }
+      toast.success(`Vendor status updated to ${status}`);
+      fetchVendors();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update vendor status");
+    } finally {
+      setProcessingVendorId(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
@@ -439,20 +553,86 @@ const AdminDashboard = () => {
                 <p className="text-xs text-muted-foreground">Vendor Verification Portal</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="gap-2" onClick={handleLogout}>
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
+            <div className="flex items-center gap-3">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative"
+                      onClick={() => setActiveTab("support")}
+                    >
+                      <Bell className="w-5 h-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{unreadCount > 0 ? `${unreadCount} unread messages` : "No unread messages"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleLogoutClick}>
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to logout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will need to sign in again to access the admin portal.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoggingOut}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleLogoutConfirm();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                "Logout"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-8">
             <TabsTrigger value="overview" className="gap-2">
               <LayoutDashboard className="w-4 h-4" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="support" className="gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Support
+              {unreadCount > 0 && (
+                <Badge className="ml-1 bg-red-500 hover:bg-red-600 px-1.5 py-0 min-w-[1.25rem] h-5">
+                  {unreadCount}
+                </Badge>
+              )}
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="managers" className="gap-2">
@@ -603,19 +783,33 @@ const AdminDashboard = () => {
                         </TableCell>
                         <TableCell>{getStatusBadge(vendor.status)}</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDetails(vendor)}
-                            disabled={processingVendorId === vendor.id}
-                          >
-                            {processingVendorId === vendor.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Eye className="w-4 h-4" />
-                            )}
-                            View
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                              onClick={() => {
+                                setChatVendor(vendor);
+                                setIsChatOpen(true);
+                              }}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewDetails(vendor)}
+                              disabled={processingVendorId === vendor.id}
+                              className="gap-2"
+                            >
+                              {processingVendorId === vendor.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                              View
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -690,6 +884,87 @@ const AdminDashboard = () => {
               </Card>
             </TabsContent>
           )}
+
+          <TabsContent value="support">
+            <Card className="glass-card border-0">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5 text-primary" />
+                  Vendor Messages
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoadingSummaries ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                    <p className="text-muted-foreground">Loading conversations...</p>
+                  </div>
+                ) : chatSummaries.length === 0 ? (
+                  <div className="text-center py-12 border-2 border-dashed rounded-xl border-muted">
+                    <MessageCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-muted-foreground">No conversations yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {chatSummaries.map((chat) => (
+                      <div
+                        key={chat.vendor_id}
+                        onClick={() => {
+                          const vendor = vendors.find(v => v.id === chat.vendor_id);
+                          setChatVendor(vendor || { id: chat.vendor_id, businessName: chat.vendor_name, vendorType: "Vendor" } as any);
+                          setIsChatOpen(true);
+                        }}
+                        className={`
+                          group flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all
+                          ${chat.unread_count > 0 ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/50"}
+                        `}
+                      >
+                        <div className="relative">
+                          <Avatar className="w-12 h-12 border-2 border-background">
+                            <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                              {chat.vendor_name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {chat.unread_count > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-background text-[10px] font-bold text-white flex items-center justify-center">
+                                {chat.unread_count}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h4 className="font-semibold truncate group-hover:text-primary transition-colors">
+                              {chat.vendor_name}
+                            </h4>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(chat.latest_message.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                            {chat.latest_message.sender === "admin" ? "You: " : ""}
+                            {chat.latest_message.message}
+                          </p>
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -730,6 +1005,7 @@ const AdminDashboard = () => {
               />
             </div>
             <Button
+              type="button"
               className="w-full"
               onClick={handleCreateManager}
               disabled={isCreatingManager}
@@ -1312,6 +1588,7 @@ const AdminDashboard = () => {
                                     />
                                     <span className="text-sm text-muted-foreground">%</span>
                                     <Button
+                                      type="button"
                                       size="sm"
                                       variant="ghost"
                                       className="h-8 w-8 p-0"
@@ -1343,46 +1620,81 @@ const AdminDashboard = () => {
               </Tabs>
 
               {/* Action Buttons */}
-              {selectedVendor.status === "pending" && isAdmin && (
+              {(isAdmin || isManager) && (
                 <div className="mt-6 pt-4 border-t space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Rejection Reason (required if rejecting)
-                    </label>
-                    <Textarea
-                      placeholder="Provide a reason for rejection..."
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      rows={2}
-                    />
-                  </div>
-                  <div className="flex gap-3 justify-end">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleReject(selectedVendor.id)}
-                      disabled={processingVendorId === selectedVendor.id}
-                      className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
-                    >
-                      {processingVendorId === selectedVendor.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
+
+
+                  {selectedVendor.status === "approved" && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setActionReason("");
+                          setPendingAction({ type: 'terminate', vendorId: selectedVendor.id });
+                          setReasonDialogOpen(true);
+                        }}
+                        disabled={processingVendorId === selectedVendor.id}
+                        className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                      >
+                        <Ban className="w-4 h-4" />
+                        Terminate
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => {
+                          setActionReason("");
+                          setPendingAction({ type: 'eject', vendorId: selectedVendor.id });
+                          setReasonDialogOpen(true);
+                        }}
+                        disabled={processingVendorId === selectedVendor.id}
+                        className="gap-2"
+                      >
+                        <UserMinus className="w-4 h-4" />
+                        Eject Vendor
+                      </Button>
+                    </>
+                  )}
+
+                  {selectedVendor.status === "pending" && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setActionReason("");
+                          setPendingAction({ type: 'reject', vendorId: selectedVendor.id });
+                          setReasonDialogOpen(true);
+                        }}
+                        disabled={processingVendorId === selectedVendor.id}
+                        className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                      >
                         <XCircle className="w-4 h-4" />
-                      )}
-                      Reject
-                    </Button>
+                        Reject
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => handleApprove(selectedVendor.id)}
+                        disabled={processingVendorId === selectedVendor.id}
+                        className="gap-2 bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Approve Vendor
+                      </Button>
+                    </>
+                  )}
+
+                  {(selectedVendor.status === "terminated" || selectedVendor.status === "rejected" || selectedVendor.status === "ejected") && (
                     <Button
+                      type="button"
                       onClick={() => handleApprove(selectedVendor.id)}
                       disabled={processingVendorId === selectedVendor.id}
                       className="gap-2 bg-green-600 hover:bg-green-700"
                     >
-                      {processingVendorId === selectedVendor.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4" />
-                      )}
-                      Approve Vendor
+                      Re-Approve Vendor
                     </Button>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -1401,6 +1713,97 @@ const AdminDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Reason Dialog */}
+      <Dialog open={reasonDialogOpen} onOpenChange={setReasonDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingAction?.type === 'reject' && 'Reject Vendor'}
+              {pendingAction?.type === 'terminate' && 'Terminate Vendor'}
+              {pendingAction?.type === 'eject' && 'Eject Vendor'}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingAction?.type === 'reject' && 'Please provide a reason for rejecting this vendor submission.'}
+              {pendingAction?.type === 'terminate' && 'Please provide a reason for terminating this vendor.'}
+              {pendingAction?.type === 'eject' && 'Please provide a reason for ejecting this vendor. This action is immediate.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              placeholder="Enter reason..."
+              value={actionReason}
+              onChange={(e) => setActionReason(e.target.value)}
+              rows={4}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setReasonDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={pendingAction?.type === 'reject' || pendingAction?.type === 'terminate' ? 'destructive' : 'default'}
+              className={pendingAction?.type === 'terminate' ? 'bg-orange-600 hover:bg-orange-700 text-white' : ''}
+              onClick={() => {
+                if (!pendingAction || !pendingAction.vendorId) return;
+
+                if (!actionReason.trim()) {
+                  toast.error("Please provide a reason");
+                  return;
+                }
+
+                if (pendingAction.type === 'reject') {
+                  const handleRejectAction = async () => {
+                    try {
+                      setProcessingVendorId(pendingAction.vendorId);
+                      setReasonDialogOpen(false);
+                      await vendorService.updateVendorStatus(pendingAction.vendorId, "rejected", actionReason);
+                      setVendors((prev) =>
+                        prev.map((v) =>
+                          v.id === pendingAction.vendorId ? { ...v, status: "rejected", rejectionReason: actionReason } : v
+                        )
+                      );
+                      if (selectedVendor && selectedVendor.id === pendingAction.vendorId) {
+                        setSelectedVendor({ ...selectedVendor, status: "rejected", rejectionReason: actionReason });
+                      }
+                      toast.success("Vendor rejected.");
+                      fetchVendors();
+                    } catch (error: any) {
+                      toast.error(error.message || "Failed to reject vendor");
+                    } finally {
+                      setProcessingVendorId(null);
+                    }
+                  }
+                  handleRejectAction();
+                } else {
+                  setReasonDialogOpen(false);
+                  handleStatusChange(pendingAction.vendorId, pendingAction.type === 'terminate' ? 'terminated' : 'ejected', actionReason);
+                }
+              }}
+            >
+              Confirm {pendingAction?.type === 'reject' ? 'Rejection' : pendingAction?.type === 'terminate' ? 'Termination' : 'Ejection'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vendor Chat Modal */}
+      <AdminChatModal
+        isOpen={isChatOpen}
+        onClose={() => {
+          setIsChatOpen(false);
+          fetchUnreadCount();
+          if (activeTab === "support") {
+            fetchChatSummaries();
+          }
+        }}
+        vendorId={chatVendor?.id || null}
+        businessName={chatVendor?.businessName || "Vendor"}
+        vendorType={chatVendor?.vendorType || "Unknown"}
+      />
     </div >
   );
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,18 @@ const AdminLogin = () => {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const { toast } = useToast();
-    const { refreshUser } = useAuth();
+    const { refreshUser, user } = useAuth();
+
+    useEffect(() => {
+        const token = localStorage.getItem('access_token');
+        if (user && token && !isLoading) {
+            if (['admin', 'manager'].includes(user.role)) {
+                navigate("/admin");
+            } else {
+                navigate("/vendor-dashboard");
+            }
+        }
+    }, [user, isLoading, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,15 +46,20 @@ const AdminLogin = () => {
 
                 // Now verify with context to update global state and redirect
                 await refreshUser();
-                navigate("/admin");
+                setTimeout(() => {
+                    navigate("/admin");
+                }, 2500);
             } else {
-                // If not admin/manager, clear constraints efficiently
+                // Strictly block non-admin/manager roles
                 authService.logout();
                 toast({
                     variant: "destructive",
                     title: "Access Denied",
-                    description: "This account does not have staff privileges.",
+                    description: response.user.role === 'vendor'
+                        ? "Please use the Vendor Login portal."
+                        : "Unauthorized account role.",
                 });
+                setIsLoading(false);
             }
         } catch (error: any) {
             console.error("Login logic error:", error);
@@ -53,7 +69,6 @@ const AdminLogin = () => {
                 title: "Login Failed",
                 description: errorMsg,
             });
-        } finally {
             setIsLoading(false);
         }
     };

@@ -71,5 +71,15 @@ export const authService = {
 
   isAuthenticated: (): boolean => {
     return !!localStorage.getItem('access_token');
+  },
+
+  sendOtp: async (phoneNumber: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post('/api/auth/send-otp', { phoneNumber });
+    return response.data;
+  },
+
+  verifyOtp: async (phoneNumber: string, otpCode: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post('/api/auth/verify-otp', { phoneNumber, otpCode });
+    return response.data;
   }
 };

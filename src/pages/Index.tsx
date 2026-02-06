@@ -15,12 +15,12 @@ const Index = () => {
     <div className="min-h-screen overflow-x-hidden relative">
       <Navbar />
       <HeroSection />
-      {/* <Stats /> */}
+      <Stats />
       <HowItWorks />
       <VendorTypes />
-      {/* <FeaturedVendors /> */}
+      <FeaturedVendors />
       <Benefits />
-      {/* <Testimonials /> */}
+      <Testimonials />
       <section id="faq">
         <FAQ />
       </section>
