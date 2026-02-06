@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { vendorService } from "@/services/vendorService";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Define the shape of our frontend vendor object (mapping from backend)
 interface VendorSubmission {
@@ -103,88 +104,52 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rejectionReason, setRejectionReason] = useState("");
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/admin/login");
+  };
 
   const fetchVendors = async () => {
     setIsLoading(true);
     try {
       const response = await vendorService.getVendors();
       if (response.success && response.vendors) {
-        // Map backend data to frontend structure
-        const mappedVendors: VendorSubmission[] = await Promise.all(response.vendors.map(async (v: any) => {
-          // Fetch full details including services and files (assuming getVendors returns basics, or fetch individually if needed)
-          // Ideally getVendors returns enough, but we might need services. 
-          // Let's assume for now we use what we have, or fetch detail on click. 
-          // Actually, getVendors in service returns VendorDetails structure. 
-
-          // Note: In a real app, we might optimize this query or the backend returns more data.
-          // For now, let's try to fetch details for each to get services, OR just map what we have.
-          // Since the UI needs service count/details for the table/modal, let's assume we fetch detail when opening modal,
-          // OR we fetch all now. Let's start with basic headers and fetch details on view.
-          // BUT the existing UI relies on 'services' array being present. 
-
-          let fullVendor = v;
-          let services = [];
-
-          try {
-            const detail = await vendorService.getVendor(v.id);
-            if (detail.success) {
-              fullVendor = detail.vendor;
-              services = detail.services || [];
-            }
-          } catch (e) {
-            console.error("Failed to fetch detail for", v.id);
-          }
-
-          return {
-            id: fullVendor.id,
-            submittedAt: new Date(fullVendor.created_at).toISOString().split('T')[0],
-            status: fullVendor.status,
-            vendorType: fullVendor.vendor_type,
-            businessName: fullVendor.business_name,
-            legalName: fullVendor.legal_name || "",
-            contactPerson: fullVendor.contact_person,
-            countryCode: "+94", // Default
-            mobileNumber: fullVendor.phone_number,
-            email: fullVendor.email,
-            operatingAreas: fullVendor.operating_areas || [],
-            businessRegNumber: fullVendor.business_reg_number || "",
-            taxId: fullVendor.tax_id || "",
-            businessAddress: fullVendor.business_address || "",
-            services: services.map((s: any) => ({
-              serviceName: s.service_name,
-              serviceCategory: s.service_category,
-              shortDescription: s.short_description,
-              durationValue: s.duration_value,
-              durationUnit: s.duration_unit,
-              groupSizeMin: s.group_size_min,
-              groupSizeMax: s.group_size_max,
-              retailPrice: s.retail_price,
-              currency: s.currency,
-              netPrice: (s.retail_price * 0.85).toFixed(2), // Mock commission calc
-            })),
-            pricing: services.map((s: any) => ({
-              currency: s.currency,
-              retailPrice: s.retail_price,
-              netPrice: (s.retail_price * 0.85).toFixed(2),
-            })),
-            hasLogo: !!fullVendor.logo_url,
-            hasCoverImage: !!fullVendor.cover_image_url,
-            galleryCount: (fullVendor.gallery_urls || []).length,
-            hasPromoVideo: false, // Not in schema yet
-            marketingPermission: fullVendor.marketing_permission,
-            bankName: fullVendor.bank_name,
-            accountHolderName: fullVendor.account_holder_name,
-            accountNumber: fullVendor.account_number,
-            payoutFrequency: "monthly", // Default
-            documents: {
-              businessRegistration: fullVendor.reg_certificate_url,
-              nicPassport: fullVendor.nic_passport_url,
-              tourismLicense: fullVendor.tourism_license_url,
-            },
-            rejectionReason: fullVendor.status_reason,
-          };
+        const mappedVendors: VendorSubmission[] = response.vendors.map((v: any) => ({
+          id: v.id,
+          submittedAt: new Date(v.created_at).toISOString().split('T')[0],
+          status: v.status || "pending",
+          vendorType: v.vendor_type || "",
+          businessName: v.business_name || "",
+          legalName: v.legal_name || "",
+          contactPerson: v.contact_person || "",
+          countryCode: "+94",
+          mobileNumber: v.phone_number || "",
+          email: v.email || "",
+          operatingAreas: v.operating_areas || [],
+          businessRegNumber: v.business_reg_number || "",
+          taxId: v.tax_id || "",
+          businessAddress: v.business_address || "",
+          services: [],
+          pricing: [],
+          hasLogo: !!v.logo_url,
+          hasCoverImage: !!v.cover_image_url,
+          galleryCount: (v.gallery_urls || []).length,
+          hasPromoVideo: false,
+          marketingPermission: v.marketing_permission || false,
+          bankName: v.bank_name || "",
+          accountHolderName: v.account_holder_name || "",
+          accountNumber: v.account_number || "",
+          payoutFrequency: "monthly",
+          documents: {
+            businessRegistration: v.reg_certificate_url,
+            nicPassport: v.nic_passport_url,
+            tourismLicense: v.tourism_license_url,
+          },
+          rejectionReason: v.status_reason,
         }));
-
         setVendors(mappedVendors);
       }
     } catch (error) {
@@ -215,11 +180,41 @@ const AdminDashboard = () => {
     rejected: vendors.filter((v) => v.status === "rejected").length,
   };
 
-  const handleViewDetails = (vendor: VendorSubmission) => {
-    setSelectedVendor(vendor);
-    setActiveDetailTab("overview");
-    setRejectionReason("");
-    setIsDetailOpen(true);
+  const handleViewDetails = async (vendor: VendorSubmission) => {
+    try {
+      const response = await vendorService.getVendor(vendor.id);
+      if (response.success) {
+        const fullVendor = response.vendor;
+        const services = response.services || [];
+        const detailedVendor: VendorSubmission = {
+          ...vendor,
+          services: services.map((s: any) => ({
+            serviceName: s.service_name,
+            serviceCategory: s.service_category,
+            shortDescription: s.short_description,
+            durationValue: s.duration_value,
+            durationUnit: s.duration_unit,
+            groupSizeMin: s.group_size_min,
+            groupSizeMax: s.group_size_max,
+            retailPrice: s.retail_price,
+            currency: s.currency,
+            netPrice: (s.retail_price * 0.85).toFixed(2),
+          })),
+          pricing: services.map((s: any) => ({
+            currency: s.currency,
+            retailPrice: s.retail_price,
+            netPrice: (s.retail_price * 0.85).toFixed(2),
+          })),
+        };
+        setSelectedVendor(detailedVendor);
+        setActiveDetailTab("overview");
+        setRejectionReason("");
+        setIsDetailOpen(true);
+      }
+    } catch (error) {
+      console.error("Failed to fetch vendor details:", error);
+      toast.error("Failed to load vendor details");
+    }
   };
 
   const handleApprove = async (vendorId: string) => {
@@ -300,12 +295,10 @@ const AdminDashboard = () => {
                 <p className="text-xs text-muted-foreground">Vendor Verification Portal</p>
               </div>
             </div>
-            <Link to="/">
-              <Button variant="outline" size="sm" className="gap-2">
-                <LogOut className="w-4 h-4" />
-                Logout
-              </Button>
-            </Link>
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" />
+              Logout
+            </Button>
           </div>
         </div>
       </div>

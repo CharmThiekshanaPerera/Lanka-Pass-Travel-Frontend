@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { 
-  LayoutDashboard, 
-  Package, 
-  Calendar, 
-  DollarSign, 
+import { useState, useEffect } from "react";
+import {
+  LayoutDashboard,
+  Package,
+  Calendar,
+  DollarSign,
   TrendingUp,
   Users,
   Star,
@@ -16,7 +16,8 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,18 +39,51 @@ import ServicesList from "@/components/dashboard/ServicesList";
 import BookingsTable from "@/components/dashboard/BookingsTable";
 import EarningsOverview from "@/components/dashboard/EarningsOverview";
 import CalendarView from "@/components/dashboard/CalendarView";
+import { vendorService } from "@/services/vendorService";
+import { toast } from "sonner";
 
 const VendorDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [vendorInfo, setVendorInfo] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [services, setServices] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const vendorInfo = {
-    name: "Paradise Tours Lanka",
-    email: "contact@paradisetours.lk",
-    avatar: "",
-    status: "approved",
-    memberSince: "January 2024"
-  };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [profileRes, statsRes] = await Promise.all([
+          vendorService.getVendorProfile(),
+          vendorService.getVendorStats()
+        ]);
+
+        if (profileRes.success) {
+          const v = profileRes.vendor;
+          setVendorInfo({
+            name: v.contact_person,
+            businessName: v.business_name,
+            email: v.email,
+            avatar: "",
+            status: v.status,
+            memberSince: new Date(v.created_at).toLocaleString('default', { month: 'long', year: 'numeric' })
+          });
+          setServices(profileRes.services || []);
+        }
+
+        if (statsRes.success) {
+          setStats(statsRes.stats);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+        toast.error("Failed to load dashboard data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const navItems = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -59,11 +93,23 @@ const VendorDashboard = () => {
     { id: "earnings", label: "Earnings", icon: DollarSign },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!vendorInfo) {
+    return <div>Error loading dashboard. Please log in again.</div>;
+  }
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -85,9 +131,9 @@ const VendorDashboard = () => {
                 <p className="text-xs text-muted-foreground">Vendor Portal</p>
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="lg:hidden"
               onClick={() => setSidebarOpen(false)}
             >
@@ -106,8 +152,8 @@ const VendorDashboard = () => {
               }}
               className={`
                 w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors
-                ${activeTab === item.id 
-                  ? 'bg-primary text-primary-foreground' 
+                ${activeTab === item.id
+                  ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
               `}
             >
@@ -139,9 +185,9 @@ const VendorDashboard = () => {
         <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
             <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="lg:hidden"
                 onClick={() => setSidebarOpen(true)}
               >
@@ -162,7 +208,7 @@ const VendorDashboard = () => {
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
               </Button>
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -190,8 +236,8 @@ const VendorDashboard = () => {
         <main className="p-4 lg:p-8">
           {activeTab === "overview" && (
             <div className="space-y-8">
-              <DashboardStats />
-              
+              <DashboardStats stats={stats} serviceCount={services.length} />
+
               <div className="grid lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2">
                   <CardHeader>
@@ -216,7 +262,7 @@ const VendorDashboard = () => {
             </div>
           )}
 
-          {activeTab === "services" && <ServicesList />}
+          {activeTab === "services" && <ServicesList services={services} />}
           {activeTab === "calendar" && <CalendarView />}
           {activeTab === "bookings" && <BookingsTable />}
           {activeTab === "earnings" && <EarningsOverview />}
