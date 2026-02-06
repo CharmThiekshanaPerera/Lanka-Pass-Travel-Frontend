@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import {
-    Send, Paperclip, Image as ImageIcon, X, Download, File,
-    CheckCheck, AlertCircle, Clock, CheckCircle, XCircle,
+    Send, Paperclip, Image as ImageIcon, X, Download, File as FileIcon,
+    CheckCheck, AlertCircle, Clock, CheckCircle, XCircle, ChevronRight, ChevronDown,
     Maximize2, Shield, Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -22,21 +22,30 @@ interface AdminChatModalProps {
     vendorId: string | null;
     businessName: string;
     vendorType: string;
+    logoUrl?: string;
+    targetRequestId?: string;
     isOpen: boolean;
     onClose: () => void;
+    onAction?: () => void;
+    onNextPending?: () => void;
+    hasMorePending?: boolean;
 }
 
 const UpdateRequestCard = ({
     message,
-    onStatusChange
+    onStatusChange,
+    onAction,
+    isTargeted
 }: {
     message: ChatMessage,
-    onStatusChange: () => void
+    onStatusChange: () => void,
+    onAction?: () => void,
+    isTargeted?: boolean
 }) => {
     const [request, setRequest] = useState<UpdateRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isActionLoading, setIsActionLoading] = useState(false);
-    const [showDetails, setShowDetails] = useState(false);
+    const [showDetails, setShowDetails] = useState(isTargeted || false);
     const [rejectReason, setRejectReason] = useState("");
     const [showRejectInput, setShowRejectInput] = useState(false);
 
@@ -46,6 +55,9 @@ const UpdateRequestCard = ({
         }
     }, [message.update_request_id, showDetails]);
 
+    // This function was added based on the instruction, assuming it belongs to a parent component
+    // or is intended to be added here for demonstration, though it's not directly used within UpdateRequestCard.
+    // If it's meant for a different component, please clarify.
     const fetchRequest = async (id: string) => {
         setIsLoading(true);
         try {
@@ -69,6 +81,7 @@ const UpdateRequestCard = ({
             toast.success("Request approved");
             setRequest(prev => prev ? { ...prev, status: 'approved' } : null);
             onStatusChange();
+            if (onAction) onAction();
         } catch (error: any) {
             toast.error(error.message || "Failed to approve");
         } finally {
@@ -89,6 +102,7 @@ const UpdateRequestCard = ({
             setRequest(prev => prev ? { ...prev, status: 'rejected' } : null);
             setShowRejectInput(false);
             onStatusChange();
+            if (onAction) onAction();
         } catch (error: any) {
             toast.error(error.message || "Failed to reject");
         } finally {
@@ -99,8 +113,8 @@ const UpdateRequestCard = ({
     if (!message.update_request_id) return null;
 
     return (
-        <Card className="mt-2 p-3 border-l-4 border-l-yellow-500 bg-yellow-50/50">
-            <div className="flex items-start justify-between mb-2">
+        <Card className={`overflow-hidden border-2 transition-all duration-1000 ${isTargeted ? 'border-primary ring-2 ring-primary/20 bg-primary/5 animate-pulse' : 'border-border'}`}>
+            <div className="p-3 border-b bg-muted/30 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-yellow-600" />
                     <span className="font-semibold text-sm text-yellow-800">Profile Update Request</span>
@@ -116,109 +130,169 @@ const UpdateRequestCard = ({
                 )}
             </div>
 
-            <p className="text-sm mb-3">{message.message}</p>
+            <div className="p-3">
+                <p className="text-sm mb-3">{message.message}</p>
 
-            {!showDetails ? (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDetails(true)}
-                    className="w-full"
-                >
-                    <Eye className="h-4 w-4 mr-2" /> Review Changes
-                </Button>
-            ) : (
-                <div className="space-y-3">
-                    {isLoading ? (
-                        <div className="flex justify-center p-2">
-                            <div className="animate-spin h-4 w-4 border-2 border-primary rounded-full border-t-transparent" />
-                        </div>
-                    ) : request ? (
-                        <div className="text-sm bg-white p-2 rounded border">
-                            <div className="grid gap-2">
-                                {request.changed_fields.map(field => (
-                                    <div key={field} className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center text-xs">
-                                        <div className="text-muted-foreground truncate" title={String(request.current_data[chatService.getDbKey(field)])}>
-                                            {String(request.current_data[chatService.getDbKey(field)] || "(Empty)")}
-                                        </div>
-                                        <div className="text-muted-foreground">→</div>
-                                        <div className="font-medium truncate" title={String(request.requested_data[chatService.getDbKey(field)])}>
-                                            {String(request.requested_data[chatService.getDbKey(field)])}
-                                        </div>
-                                        <div className="col-span-3 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                                            {chatService.formatFieldName(field)}
-                                        </div>
-                                        <div className="col-span-3 h-px bg-border my-1" />
-                                    </div>
-                                ))}
-
+                {!showDetails ? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDetails(true)}
+                        className="w-full"
+                    >
+                        <Eye className="h-4 w-4 mr-2" /> Review Changes
+                    </Button>
+                ) : (
+                    <div className="space-y-3">
+                        {isLoading ? (
+                            <div className="flex justify-center p-2">
+                                <div className="animate-spin h-4 w-4 border-2 border-primary rounded-full border-t-transparent" />
                             </div>
+                        ) : request ? (
+                            <div className="text-sm bg-white p-2 rounded border">
+                                <div className="grid gap-2">
+                                    {request.changed_fields.map(field => {
+                                        const dbKey = chatService.getDbKey(field);
+                                        const isImage = field === 'logoUrl' || field === 'coverImageUrl';
+                                        const currentValue = request.current_data[dbKey];
+                                        const requestedValue = request.requested_data[dbKey];
 
-                            {request.status === 'pending' && (
-                                <div className="mt-3 space-y-2">
-                                    {showRejectInput ? (
-                                        <div className="space-y-2">
-                                            <Label>Rejection Reason</Label>
-                                            <Textarea
-                                                value={rejectReason}
-                                                onChange={(e) => setRejectReason(e.target.value)}
-                                                placeholder="Why are you rejecting this change?"
-                                                className="h-20"
-                                            />
-                                            <div className="flex gap-2 justify-end">
+                                        return (
+                                            <div key={field} className="space-y-2 py-3 border-b last:border-0">
+                                                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold px-1">
+                                                    {chatService.formatFieldName(field)}
+                                                </div>
+
+                                                <div className="flex flex-col gap-2">
+                                                    {isImage ? (
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div className="space-y-1">
+                                                                <div className="h-20 w-20 rounded overflow-hidden border bg-muted">
+                                                                    {currentValue ? (
+                                                                        <img src={currentValue} alt="Current" className="h-full w-full object-cover" />
+                                                                    ) : (
+                                                                        <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground italic">No Image</div>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-[10px] text-muted-foreground text-center font-medium">Approved</p>
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <div className="h-20 w-20 rounded overflow-hidden border-2 border-primary bg-muted">
+                                                                    {requestedValue ? (
+                                                                        <img src={requestedValue} alt="Requested" className="h-full w-full object-cover" />
+                                                                    ) : (
+                                                                        <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground italic">No Image</div>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-[10px] text-primary font-bold text-center">Requested</p>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            <div className="text-muted-foreground whitespace-pre-wrap break-all italic bg-muted/30 p-2.5 rounded border border-dashed text-xs min-w-0">
+                                                                <span className="text-[10px] opacity-60 block mb-1 uppercase font-bold tracking-tighter">Current Approval</span>
+                                                                {String(currentValue || "(Empty)")}
+                                                            </div>
+                                                            <div className="text-muted-foreground flex justify-center py-1">
+                                                                <div className="bg-muted rounded-full p-1 border border-border">
+                                                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                                                </div>
+                                                            </div>
+                                                            <div className="font-semibold whitespace-pre-wrap break-all bg-amber-500/5 p-3 rounded-lg border-2 border-amber-500/20 text-xs min-w-0 shadow-sm">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                                                    <span className="text-[10px] text-amber-600 uppercase font-bold tracking-widest">Requested Change</span>
+                                                                </div>
+                                                                <div className="text-foreground">
+                                                                    {String(requestedValue || "(Empty)")}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                </div>
+
+                                {request.status === 'pending' && (
+                                    <div className="mt-3 space-y-2">
+                                        {showRejectInput ? (
+                                            <div className="space-y-2">
+                                                <Label>Rejection Reason</Label>
+                                                <Textarea
+                                                    value={rejectReason}
+                                                    onChange={(e) => setRejectReason(e.target.value)}
+                                                    placeholder="Why are you rejecting this change?"
+                                                    className="h-20"
+                                                />
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setShowRejectInput(false)}
+                                                        disabled={isActionLoading}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        onClick={handleReject}
+                                                        disabled={isActionLoading}
+                                                    >
+                                                        Confirm Reject
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-2">
                                                 <Button
-                                                    variant="ghost"
+                                                    variant="default"
                                                     size="sm"
-                                                    onClick={() => setShowRejectInput(false)}
+                                                    className="flex-1 bg-green-600 hover:bg-green-700"
+                                                    onClick={handleApprove}
                                                     disabled={isActionLoading}
                                                 >
-                                                    Cancel
+                                                    Approve
                                                 </Button>
                                                 <Button
                                                     variant="destructive"
                                                     size="sm"
-                                                    onClick={handleReject}
+                                                    className="flex-1"
+                                                    onClick={() => setShowRejectInput(true)}
                                                     disabled={isActionLoading}
                                                 >
-                                                    Confirm Reject
+                                                    Reject
                                                 </Button>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div className="flex gap-2">
-                                            <Button
-                                                variant="default"
-                                                size="sm"
-                                                className="flex-1 bg-green-600 hover:bg-green-700"
-                                                onClick={handleApprove}
-                                                disabled={isActionLoading}
-                                            >
-                                                Approve
-                                            </Button>
-                                            <Button
-                                                variant="destructive"
-                                                size="sm"
-                                                className="flex-1"
-                                                onClick={() => setShowRejectInput(true)}
-                                                disabled={isActionLoading}
-                                            >
-                                                Reject
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <p className="text-destructive text-xs">Failed to load details</p>
-                    )}
-                </div>
-            )}
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-destructive text-xs">Failed to load details</p>
+                        )}
+                    </div>
+                )}
+            </div>
         </Card>
     );
 };
 
-export const AdminChatModal = ({ vendorId, businessName, vendorType, isOpen, onClose }: AdminChatModalProps) => {
+export const AdminChatModal = ({
+    vendorId,
+    businessName,
+    vendorType,
+    logoUrl,
+    targetRequestId,
+    isOpen,
+    onClose,
+    onAction,
+    onNextPending,
+    hasMorePending
+}: AdminChatModalProps) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputMessage, setInputMessage] = useState("");
     const [attachments, setAttachments] = useState<File[]>([]);
@@ -229,6 +303,21 @@ export const AdminChatModal = ({ vendorId, businessName, vendorType, isOpen, onC
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+    // Targeted scroll effect
+    useEffect(() => {
+        if (isOpen && targetRequestId && messages.length > 0) {
+            // Give a small delay to ensure rendering is complete
+            const timer = setTimeout(() => {
+                const targetRef = messageRefs.current[targetRequestId];
+                if (targetRef) {
+                    targetRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen, targetRequestId, messages.length]);
 
     useEffect(() => {
         if (isOpen && vendorId) {
@@ -320,9 +409,13 @@ export const AdminChatModal = ({ vendorId, businessName, vendorType, isOpen, onC
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10 border">
-                                <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                                    {businessName.split(" ").map(n => n[0]).join("")}
-                                </AvatarFallback>
+                                {logoUrl ? (
+                                    <AvatarImage src={logoUrl} alt={businessName} />
+                                ) : (
+                                    <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                                        {businessName.split(" ").map(n => n[0]).join("")}
+                                    </AvatarFallback>
+                                )}
                             </Avatar>
                             <div>
                                 <DialogTitle className="text-base font-semibold flex items-center gap-2">
@@ -336,67 +429,85 @@ export const AdminChatModal = ({ vendorId, businessName, vendorType, isOpen, onC
                                 </DialogDescription>
                             </div>
                         </div>
+
+                        {onNextPending && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={onNextPending}
+                                className="gap-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5"
+                            >
+                                Next Action
+                                <ChevronRight className="w-4 h-4" />
+                            </Button>
+                        )}
                     </div>
                 </DialogHeader>
 
-                <div className="flex-1 bg-muted/30 relative flex flex-col min-h-0">
-                    <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+                <div className="flex-1 bg-muted/30 relative flex flex-col min-h-0 overflow-x-hidden">
+                    <ScrollArea className="flex-1 p-4 w-full" ref={scrollAreaRef}>
                         <div className="space-y-4 pb-4">
                             {messages.length === 0 && !isLoading ? (
                                 <div className="text-center text-muted-foreground text-sm py-10">
                                     No conversation history.
                                 </div>
                             ) : (
-                                messages.map((msg) => (
-                                    <div key={msg.id} className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[85%] flex flex-col ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
-
-                                            {msg.message_type !== 'text' && (
-                                                <div className="flex items-center gap-1 mb-1 text-xs text-muted-foreground">
-                                                    {getMessageTypeIcon(msg)}
-                                                    <span>
-                                                        {msg.message_type === 'update_request' && 'Update Request'}
-                                                        {msg.message_type === 'system' && 'System Notification'}
+                                messages.map((msg) => {
+                                    const isAdminMsg = msg.sender === 'admin';
+                                    return (
+                                        <div
+                                            key={msg.id}
+                                            ref={el => {
+                                                if (msg.update_request_id) {
+                                                    messageRefs.current[msg.update_request_id] = el;
+                                                }
+                                            }}
+                                            className={`flex flex-col ${isAdminMsg ? "items-end" : "items-start"}`}
+                                        >
+                                            <div className={`max-w-[85%] rounded-lg p-3 ${isAdminMsg
+                                                ? "bg-primary text-primary-foreground"
+                                                : "bg-muted"
+                                                }`}>
+                                                {/* Header info */}
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[10px] font-bold opacity-70 uppercase tracking-wider">
+                                                        {msg.sender_name}
                                                     </span>
+                                                    {getMessageTypeIcon(msg)}
                                                 </div>
-                                            )}
 
-                                            {msg.message_type === 'update_request' ? (
-                                                <UpdateRequestCard
-                                                    message={msg}
-                                                    onStatusChange={fetchMessages}
-                                                />
-                                            ) : (
-                                                <div className={`p-3 rounded-2xl text-sm shadow-sm ${msg.sender === 'admin'
-                                                    ? 'bg-primary text-primary-foreground rounded-tr-none'
-                                                    : msg.message_type === 'system'
-                                                        ? 'bg-muted border border-border text-center w-full italic'
-                                                        : 'bg-white border rounded-tl-none'
-                                                    }`}>
-                                                    <p className="whitespace-pre-wrap">{msg.message}</p>
+                                                {msg.message_type === "update_request" && msg.update_request_id ? (
+                                                    <UpdateRequestCard
+                                                        message={msg}
+                                                        onStatusChange={fetchMessages}
+                                                        onAction={onAction}
+                                                        isTargeted={msg.update_request_id === targetRequestId}
+                                                    />
+                                                ) : (
+                                                    <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                                                )}
+
+                                                {/* Attachments */}
+                                                {msg.attachments && msg.attachments.length > 0 && (
+                                                    <div className="mt-1 space-y-1">
+                                                        {msg.attachments.map((att, i) => (
+                                                            <div key={i} className={`text-xs p-1 rounded flex items-center gap-1 ${isAdminMsg ? "bg-primary-foreground/10 text-primary-foreground" : "bg-background/50 text-foreground"}`}>
+                                                                <FileIcon className="h-3 w-3" />
+                                                                <a href={att.url} target="_blank" rel="noreferrer" className="underline truncate max-w-[150px]">
+                                                                    {att.name}
+                                                                </a>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                <div className={`text-[10px] mt-2 ${isAdminMsg ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </div>
-                                            )}
-
-                                            {/* Attachments */}
-                                            {msg.attachments && msg.attachments.length > 0 && (
-                                                <div className="mt-1 space-y-1">
-                                                    {msg.attachments.map((att, i) => (
-                                                        <div key={i} className="text-xs bg-muted p-1 rounded flex items-center gap-1">
-                                                            <File className="h-3 w-3" />
-                                                            <a href={att.url} target="_blank" rel="noreferrer" className="underline truncate max-w-[150px]">
-                                                                {att.name}
-                                                            </a>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            <span className="text-[10px] text-muted-foreground mt-1 mx-1">
-                                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </ScrollArea>

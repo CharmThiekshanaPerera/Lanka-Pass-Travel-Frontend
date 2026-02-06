@@ -152,9 +152,6 @@ const VendorDashboard = () => {
     { id: "profile", label: "Profile", icon: User },
     { id: "services", label: "My Services", icon: Package },
     { id: "media", label: "Media", icon: ImageIcon },
-    { id: "calendar", label: "Calendar", icon: Calendar },
-    { id: "bookings", label: "Bookings", icon: Package },
-    { id: "earnings", label: "Earnings", icon: DollarSign },
     { id: "support", label: "Support", icon: MessageCircle },
   ];
 
@@ -321,36 +318,11 @@ const VendorDashboard = () => {
           {activeTab === "overview" && (
             <div className="space-y-8">
               <DashboardStats stats={stats} serviceCount={services.length} />
-
-              <div className="grid lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Recent Bookings</CardTitle>
-                    <CardDescription>Your latest booking requests</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <BookingsTable limit={5} compact />
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Availability</CardTitle>
-                    <CardDescription>Quick calendar view</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CalendarView compact services={services} />
-                  </CardContent>
-                </Card>
-              </div>
             </div>
           )}
 
           {activeTab === "services" && <ServicesList services={services} onRefresh={refreshData} />}
           {activeTab === "media" && <MediaGallery vendorId={fullVendorData?.id} />}
-          {activeTab === "calendar" && <CalendarView services={services} />}
-          {activeTab === "bookings" && <BookingsTable />}
-          {activeTab === "earnings" && <EarningsOverview />}
           {activeTab === "support" && <SupportChatTab vendorId={fullVendorData?.id} />}
           {activeTab === "profile" && fullVendorData && (
             <div className="max-w-4xl mx-auto">
