@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import StepIndicator from "@/components/onboarding/StepIndicator";
 import Step1VendorBasics from "@/components/onboarding/Step1VendorBasics";
@@ -220,6 +220,21 @@ const Onboarding = () => {
           </div>
         )}
       </main>
+
+      {/* Loading Overlay */}
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center animate-fade-in">
+          <div className="bg-card p-8 rounded-2xl shadow-elevated border border-border flex flex-col items-center gap-4 max-w-sm text-center animate-scale-in">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+              <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+            </div>
+            <h3 className="text-xl font-display font-bold text-foreground">Registering Account</h3>
+            <p className="text-muted-foreground text-sm">
+              Please wait while we set up your profile and upload your documents. This may take a few moments...
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

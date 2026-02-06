@@ -55,10 +55,13 @@ import {
   Download,
   LogOut,
   Loader2,
+  UserPlus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { vendorService } from "@/services/vendorService";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
 
 // Define the shape of our frontend vendor object (mapping from backend)
 interface VendorSubmission {
@@ -86,13 +89,20 @@ interface VendorSubmission {
   bankName: string;
   accountHolderName: string;
   accountNumber: string;
+  bankBranch: string;
   payoutFrequency: string; // Not in current backend, default or map
+  payoutCycle?: string;
+  payoutDate?: string;
+  phoneVerified?: boolean;
   documents: {
     businessRegistration: string;
     nicPassport: string;
     tourismLicense: string;
   };
   rejectionReason?: string;
+  logoUrl?: string;
+  coverImageUrl?: string;
+  galleryUrls?: string[];
 }
 
 const AdminDashboard = () => {
@@ -104,8 +114,52 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rejectionReason, setRejectionReason] = useState("");
-  const { logout } = useAuth();
+
+  // Manager Management State
+  const [managers, setManagers] = useState<any[]>([]);
+  const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
+  const [newManager, setNewManager] = useState({ name: "", email: "", password: "" });
+  const [isCreatingManager, setIsCreatingManager] = useState(false);
+  const [processingVendorId, setProcessingVendorId] = useState<string | null>(null);
+  const [updatingServiceId, setUpdatingServiceId] = useState<string | null>(null);
+  const [commissionValues, setCommissionValues] = useState<{ [key: string]: string }>({});
+
+  const handleCommissionChange = (serviceId: string, value: string) => {
+    setCommissionValues(prev => ({ ...prev, [serviceId]: value }));
+  };
+
+  const handleUpdateCommission = async (serviceId: string) => {
+    const value = commissionValues[serviceId];
+    if (!value || isNaN(Number(value)) || Number(value) < 0 || Number(value) > 100) {
+      toast.error("Please enter a valid commission percentage (0-100)");
+      return;
+    }
+
+    setUpdatingServiceId(serviceId);
+    try {
+      await api.patch(
+        `/api/admin/services/${serviceId}/commission`,
+        { commission_percent: Number(value) }
+      );
+      toast.success("Commission updated successfully");
+
+      // Refresh vendor details to show new calculations
+      if (selectedVendor) {
+        handleViewDetails(selectedVendor);
+      }
+    } catch (error: any) {
+      console.error("Failed to update commission:", error);
+      toast.error(error.response?.data?.detail || "Failed to update commission");
+    } finally {
+      setUpdatingServiceId(null);
+    }
+  };
+
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const isAdmin = user?.role === 'admin';
+  const isManager = user?.role === 'manager';
 
   const handleLogout = () => {
     logout();
@@ -142,27 +196,92 @@ const AdminDashboard = () => {
           bankName: v.bank_name || "",
           accountHolderName: v.account_holder_name || "",
           accountNumber: v.account_number || "",
+          bankBranch: v.bank_branch || "",
           payoutFrequency: "monthly",
+          payoutCycle: v.payout_cycle,
+          payoutDate: v.payout_date,
+          phoneVerified: v.phone_verified || false,
           documents: {
             businessRegistration: v.reg_certificate_url,
             nicPassport: v.nic_passport_url,
             tourismLicense: v.tourism_license_url,
           },
           rejectionReason: v.status_reason,
+          logoUrl: v.logo_url,
+          coverImageUrl: v.cover_image_url,
+          galleryUrls: v.gallery_urls || [],
         }));
         setVendors(mappedVendors);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch vendors:", error);
-      toast.error("Failed to load vendors");
+      toast.error(error.message || "Failed to load vendors");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const fetchManagers = async () => {
+    if (!isAdmin) return;
+    try {
+      const response = await vendorService.getManagers();
+      if (response.success) {
+        setManagers(response.managers);
+      }
+    } catch (error) {
+      console.error("Failed to fetch managers:", error);
+    }
+  };
+
+  const handleCreateManager = async () => {
+    if (!newManager.name || !newManager.email || !newManager.password) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setIsCreatingManager(true);
+    try {
+      await vendorService.createManager(newManager);
+      toast.success("Manager created successfully");
+      setIsManagerModalOpen(false);
+      setNewManager({ name: "", email: "", password: "" });
+      fetchManagers();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create manager");
+    } finally {
+      setIsCreatingManager(false);
+    }
+  };
+
+  const handleDeleteManager = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this manager?")) return;
+    try {
+      await vendorService.deleteManager(id);
+      toast.success("Manager deleted successfully");
+      fetchManagers();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete manager");
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      toast.promise(vendorService.exportVendors(), {
+        loading: 'Generating export...',
+        success: 'Export downloaded successfully',
+        error: 'Failed to export data'
+      });
+    } catch (error) {
+      toast.error("Failed to start export");
+    }
+  };
+
   useEffect(() => {
     fetchVendors();
-  }, []);
+    if (isAdmin) {
+      fetchManagers();
+    }
+  }, [user]);
 
   const filteredVendors = vendors.filter((vendor) => {
     const matchesSearch =
@@ -182,6 +301,7 @@ const AdminDashboard = () => {
 
   const handleViewDetails = async (vendor: VendorSubmission) => {
     try {
+      setProcessingVendorId(vendor.id);
       const response = await vendorService.getVendor(vendor.id);
       if (response.success) {
         const fullVendor = response.vendor;
@@ -199,7 +319,23 @@ const AdminDashboard = () => {
             retailPrice: s.retail_price,
             currency: s.currency,
             netPrice: (s.retail_price * 0.85).toFixed(2),
+            imageUrls: s.image_urls || [],
+            languagesOffered: s.languages_offered || [],
+            operatingDays: s.operating_days || [],
+            whatsIncluded: s.whats_included || '',
+            whatsNotIncluded: s.whats_not_included || '',
+            cancellationPolicy: s.cancellation_policy || '',
+            advanceBooking: s.advance_booking || 'N/A',
+            // Operating hours
+            operatingHoursFrom: s.operating_hours_from,
+            operatingHoursFromPeriod: s.operating_hours_from_period,
+            operatingHoursTo: s.operating_hours_to,
+            operatingHoursToPeriod: s.operating_hours_to_period,
+            // Blackout dates
+            blackoutDates: s.blackout_dates || [],
+            blackoutHolidays: s.blackout_holidays || false,
           })),
+          bankBranch: fullVendor.bank_branch || vendor.bankBranch,
           pricing: services.map((s: any) => ({
             currency: s.currency,
             retailPrice: s.retail_price,
@@ -211,14 +347,17 @@ const AdminDashboard = () => {
         setRejectionReason("");
         setIsDetailOpen(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch vendor details:", error);
-      toast.error("Failed to load vendor details");
+      toast.error(error.message || "Failed to load vendor details");
+    } finally {
+      setProcessingVendorId(null);
     }
   };
 
   const handleApprove = async (vendorId: string) => {
     try {
+      setProcessingVendorId(vendorId);
       await vendorService.updateVendorStatus(vendorId, "approved");
       setVendors((prev) =>
         prev.map((v) => (v.id === vendorId ? { ...v, status: "approved" } : v))
@@ -226,8 +365,10 @@ const AdminDashboard = () => {
       setIsDetailOpen(false);
       toast.success("Vendor approved successfully!");
       fetchVendors(); // Refresh to ensure sync
-    } catch (error) {
-      toast.error("Failed to approve vendor");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to approve vendor");
+    } finally {
+      setProcessingVendorId(null);
     }
   };
 
@@ -238,6 +379,7 @@ const AdminDashboard = () => {
     }
 
     try {
+      setProcessingVendorId(vendorId);
       await vendorService.updateVendorStatus(vendorId, "rejected", rejectionReason);
       setVendors((prev) =>
         prev.map((v) =>
@@ -247,8 +389,10 @@ const AdminDashboard = () => {
       setIsDetailOpen(false);
       toast.success("Vendor rejected.");
       fetchVendors();
-    } catch (error) {
-      toast.error("Failed to reject vendor");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to reject vendor");
+    } finally {
+      setProcessingVendorId(null);
     }
   };
 
@@ -304,163 +448,304 @@ const AdminDashboard = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Card className="glass-card border-0">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Submissions</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card border-0">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.pending}</p>
-                  <p className="text-xs text-muted-foreground">Pending Review</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card border-0">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.approved}</p>
-                  <p className="text-xs text-muted-foreground">Approved</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card border-0">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
-                  <XCircle className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.rejected}</p>
-                  <p className="text-xs text-muted-foreground">Rejected</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="mb-8">
+            <TabsTrigger value="overview" className="gap-2">
+              <LayoutDashboard className="w-4 h-4" />
+              Overview
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="managers" className="gap-2">
+                <Users className="w-4 h-4" />
+                Managers
+              </TabsTrigger>
+            )}
+          </TabsList>
 
-        {/* Filters and Search */}
-        <Card className="glass-card border-0 mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, email, or ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[150px]">
-                    <Filter className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Filter Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Export
-                </Button>
-              </div>
+          <TabsContent value="overview">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <Card className="glass-card border-0">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats.total}</p>
+                      <p className="text-xs text-muted-foreground">Total Submissions</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card border-0">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats.pending}</p>
+                      <p className="text-xs text-muted-foreground">Pending Review</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card border-0">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats.approved}</p>
+                      <p className="text-xs text-muted-foreground">Approved</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card border-0">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                      <XCircle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats.rejected}</p>
+                      <p className="text-xs text-muted-foreground">Rejected</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Vendors Table */}
-        <Card className="glass-card border-0">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              Vendor Submissions ({filteredVendors.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vendor ID</TableHead>
-                  <TableHead>Business Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredVendors.map((vendor) => (
-                  <TableRow key={vendor.id}>
-                    <TableCell className="font-mono text-sm">{vendor.id}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {vendor.businessName.split(" ").map((n) => n[0]).join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{vendor.businessName}</p>
-                          <p className="text-xs text-muted-foreground">{vendor.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{vendor.vendorType}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{vendor.contactPerson}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{vendor.submittedAt}</span>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(vendor.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewDetails(vendor)}
-                        className="gap-1"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+            {/* Filters and Search */}
+            <Card className="glass-card border-0 mb-6">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, email, or ID..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-[150px]">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Filter Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button variant="outline" className="gap-2" onClick={handleExport}>
+                      <Download className="w-4 h-4" />
+                      Export
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Vendors Table */}
+            <Card className="glass-card border-0">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  Vendor Submissions ({filteredVendors.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Vendor ID</TableHead>
+                      <TableHead>Business Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredVendors.map((vendor) => (
+                      <TableRow key={vendor.id}>
+                        <TableCell className="font-mono text-sm">{vendor.id}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                {vendor.businessName.split(" ").map((n) => n[0]).join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{vendor.businessName}</p>
+                              <p className="text-xs text-muted-foreground">{vendor.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{vendor.vendorType}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">{vendor.contactPerson}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">{vendor.submittedAt}</span>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(vendor.status)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewDetails(vendor)}
+                            disabled={processingVendorId === vendor.id}
+                          >
+                            {processingVendorId === vendor.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="managers">
+              <Card className="glass-card border-0">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    System Managers
+                  </CardTitle>
+                  <Button onClick={() => setIsManagerModalOpen(true)} className="gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    Add Manager
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {managers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            No managers found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        managers.map((manager) => (
+                          <TableRow key={manager.id}>
+                            <TableCell className="font-medium">{manager.name}</TableCell>
+                            <TableCell>{manager.email}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {manager.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={manager.is_active ? "default" : "secondary"}>
+                                {manager.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteManager(manager.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
+
+      {/* Add Manager Modal */}
+      <Dialog open={isManagerModalOpen} onOpenChange={setIsManagerModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Manager</DialogTitle>
+            <DialogDescription>
+              Create a new manager account. They will have access to view and approve vendors.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name</label>
+              <Input
+                placeholder="Manager Name"
+                value={newManager.name}
+                onChange={(e) => setNewManager({ ...newManager, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input
+                type="email"
+                placeholder="manager@example.com"
+                value={newManager.email}
+                onChange={(e) => setNewManager({ ...newManager, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Password</label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={newManager.password}
+                onChange={(e) => setNewManager({ ...newManager, password: e.target.value })}
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={handleCreateManager}
+              disabled={isCreatingManager}
+            >
+              {isCreatingManager ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Manager"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Vendor Detail Modal */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
@@ -708,7 +993,7 @@ const AdminDashboard = () => {
                         <div>
                           <p className="text-xs text-muted-foreground mb-1">Languages</p>
                           <div className="flex gap-1">
-                            {service.languagesOffered.map((lang) => (
+                            {service.languagesOffered?.map((lang) => (
                               <Badge key={lang} variant="outline" className="text-xs">
                                 {lang}
                               </Badge>
@@ -719,7 +1004,7 @@ const AdminDashboard = () => {
                         <div>
                           <p className="text-xs text-muted-foreground mb-1">Operating Days</p>
                           <div className="flex gap-1">
-                            {service.operatingDays.map((day) => (
+                            {service.operatingDays?.map((day) => (
                               <Badge key={day} variant="secondary" className="text-xs">
                                 {day}
                               </Badge>
@@ -727,11 +1012,57 @@ const AdminDashboard = () => {
                           </div>
                         </div>
 
+                        {/* Operating Hours */}
+                        {(service.operatingHoursFrom || service.operatingHoursTo) && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Operating Hours</p>
+                            <p className="font-medium">
+                              {service.operatingHoursFrom} {service.operatingHoursFromPeriod} - {service.operatingHoursTo} {service.operatingHoursToPeriod}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Blackout Information */}
+                        {(service.blackoutDates?.length > 0 || service.blackoutHolidays) && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Blackout Dates</p>
+                            <div className="space-y-1">
+                              {service.blackoutHolidays && (
+                                <Badge variant="outline" className="text-xs">Excludes Public Holidays</Badge>
+                              )}
+                              {service.blackoutDates?.length > 0 && (
+                                <p className="text-sm">{service.blackoutDates.length} specific date(s) blocked</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         <div>
                           <p className="text-xs text-muted-foreground mb-1">Cancellation Policy</p>
                           <p>{service.cancellationPolicy}</p>
                         </div>
                       </CardContent>
+
+                      {/* Service Images */}
+                      {
+                        service.imageUrls && service.imageUrls.length > 0 && (
+                          <div className="px-6 pb-6">
+                            <p className="text-xs text-muted-foreground mb-2">Service Images</p>
+                            <div className="flex gap-2 overflow-x-auto pb-2">
+                              {service.imageUrls.map((url: string, imgIndex: number) => (
+                                <div key={imgIndex} className="w-24 h-24 flex-shrink-0 rounded-md overflow-hidden border">
+                                  <img
+                                    src={url}
+                                    alt={`Service ${index + 1} Image ${imgIndex + 1}`}
+                                    className="w-full h-full object-cover cursor-pointer hover:opacity-90"
+                                    onClick={() => window.open(url, '_blank')}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      }
                     </Card>
                   ))}
                 </TabsContent>
@@ -752,12 +1083,16 @@ const AdminDashboard = () => {
                           <div>
                             <p className="font-medium">Business Registration Certificate</p>
                             <p className="text-xs text-muted-foreground">
-                              {selectedVendor.documents.businessRegistration || "Not uploaded"}
+                              {selectedVendor.documents.businessRegistration ? "Uploaded" : "Not uploaded"}
                             </p>
                           </div>
                         </div>
                         {selectedVendor.documents.businessRegistration ? (
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(selectedVendor.documents.businessRegistration, '_blank')}
+                          >
                             View
                           </Button>
                         ) : (
@@ -771,12 +1106,16 @@ const AdminDashboard = () => {
                           <div>
                             <p className="font-medium">NIC / Passport</p>
                             <p className="text-xs text-muted-foreground">
-                              {selectedVendor.documents.nicPassport || "Not uploaded"}
+                              {selectedVendor.documents.nicPassport ? "Uploaded" : "Not uploaded"}
                             </p>
                           </div>
                         </div>
                         {selectedVendor.documents.nicPassport ? (
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(selectedVendor.documents.nicPassport, '_blank')}
+                          >
                             View
                           </Button>
                         ) : (
@@ -790,18 +1129,89 @@ const AdminDashboard = () => {
                           <div>
                             <p className="font-medium">Tourism License</p>
                             <p className="text-xs text-muted-foreground">
-                              {selectedVendor.documents.tourismLicense || "Not uploaded"}
+                              {selectedVendor.documents.tourismLicense ? "Uploaded" : "Not uploaded"}
                             </p>
                           </div>
                         </div>
                         {selectedVendor.documents.tourismLicense ? (
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(selectedVendor.documents.tourismLicense, '_blank')}
+                          >
                             View
                           </Button>
                         ) : (
                           <Badge variant="destructive">Missing</Badge>
                         )}
                       </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Gallery Section */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <ImageIcon className="w-4 h-4 text-primary" />
+                        Images & Gallery
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Logo */}
+                      {selectedVendor.logoUrl && (
+                        <div>
+                          <p className="text-sm font-medium mb-2">Business Logo</p>
+                          <div className="border rounded-lg p-4 bg-white flex items-center justify-center">
+                            <img
+                              src={selectedVendor.logoUrl}
+                              alt="Business Logo"
+                              className="max-h-32 object-contain cursor-pointer hover:opacity-80 transition"
+                              onClick={() => window.open(selectedVendor.logoUrl, '_blank')}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cover Image */}
+                      {selectedVendor.coverImageUrl && (
+                        <div>
+                          <p className="text-sm font-medium mb-2">Cover Image</p>
+                          <div className="border rounded-lg overflow-hidden">
+                            <img
+                              src={selectedVendor.coverImageUrl}
+                              alt="Cover Image"
+                              className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition"
+                              onClick={() => window.open(selectedVendor.coverImageUrl, '_blank')}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Gallery Images */}
+                      {selectedVendor.galleryUrls && selectedVendor.galleryUrls.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium mb-2">Gallery ({selectedVendor.galleryUrls.length} images)</p>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {selectedVendor.galleryUrls.map((url, index) => (
+                              <div key={index} className="border rounded-lg overflow-hidden aspect-square">
+                                <img
+                                  src={url}
+                                  alt={`Gallery ${index + 1}`}
+                                  className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition"
+                                  onClick={() => window.open(url, '_blank')}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {!selectedVendor.logoUrl && !selectedVendor.coverImageUrl && (!selectedVendor.galleryUrls || selectedVendor.galleryUrls.length === 0) && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                          <p>No images uploaded</p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -832,11 +1242,36 @@ const AdminDashboard = () => {
                       </div>
                       <Separator />
                       <div className="flex justify-between">
+                        <span className="text-muted-foreground">Branch</span>
+                        <span className="font-medium">{selectedVendor.bankBranch}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Payout Frequency</span>
                         <Badge variant="secondary" className="capitalize">
                           {selectedVendor.payoutFrequency}
                         </Badge>
                       </div>
+                      {selectedVendor.payoutCycle && (
+                        <>
+                          <Separator />
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Preferred Payout Cycle</span>
+                            <Badge variant="outline" className="capitalize">
+                              {selectedVendor.payoutCycle}
+                            </Badge>
+                          </div>
+                        </>
+                      )}
+                      {selectedVendor.payoutDate && (
+                        <>
+                          <Separator />
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Preferred Payout Date</span>
+                            <span className="font-medium">{selectedVendor.payoutDate}</span>
+                          </div>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -863,7 +1298,37 @@ const AdminDashboard = () => {
                                 {selectedVendor.pricing[index]?.currency}{" "}
                                 {selectedVendor.pricing[index]?.retailPrice}
                               </TableCell>
-                              <TableCell>{selectedVendor.pricing[index]?.commission}%</TableCell>
+                              <TableCell>
+                                {isAdmin ? (
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      className="w-20 h-8"
+                                      placeholder={String(selectedVendor.pricing[index]?.commission || 0)}
+                                      value={commissionValues[service.id] !== undefined ? commissionValues[service.id] : (selectedVendor.pricing[index]?.commission || 0)}
+                                      onChange={(e) => handleCommissionChange(service.id, e.target.value)}
+                                    />
+                                    <span className="text-sm text-muted-foreground">%</span>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                      disabled={updatingServiceId === service.id}
+                                      onClick={() => handleUpdateCommission(service.id)}
+                                    >
+                                      {updatingServiceId === service.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <span>{selectedVendor.pricing[index]?.commission || 0}%</span>
+                                )}
+                              </TableCell>
                               <TableCell className="font-medium text-green-600">
                                 {selectedVendor.pricing[index]?.currency}{" "}
                                 {selectedVendor.pricing[index]?.netPrice}
@@ -878,7 +1343,7 @@ const AdminDashboard = () => {
               </Tabs>
 
               {/* Action Buttons */}
-              {selectedVendor.status === "pending" && (
+              {selectedVendor.status === "pending" && isAdmin && (
                 <div className="mt-6 pt-4 border-t space-y-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">
@@ -895,16 +1360,26 @@ const AdminDashboard = () => {
                     <Button
                       variant="outline"
                       onClick={() => handleReject(selectedVendor.id)}
+                      disabled={processingVendorId === selectedVendor.id}
                       className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
                     >
-                      <XCircle className="w-4 h-4" />
+                      {processingVendorId === selectedVendor.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <XCircle className="w-4 h-4" />
+                      )}
                       Reject
                     </Button>
                     <Button
                       onClick={() => handleApprove(selectedVendor.id)}
+                      disabled={processingVendorId === selectedVendor.id}
                       className="gap-2 bg-green-600 hover:bg-green-700"
                     >
-                      <CheckCircle2 className="w-4 h-4" />
+                      {processingVendorId === selectedVendor.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4" />
+                      )}
                       Approve Vendor
                     </Button>
                   </div>
@@ -926,7 +1401,7 @@ const AdminDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 };
 

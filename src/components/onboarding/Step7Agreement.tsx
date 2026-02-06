@@ -277,6 +277,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
         <Button
           variant="hero"
           size="xl"
+          type="button"
           onClick={handleSubmitClick}
           disabled={!allChecked || isSubmitting}
           className="w-full"
@@ -346,18 +347,19 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
                     onClick={handleResendVerification}
                     disabled={resendCooldown > 0}
                     variant="outline"
+                    type="button"
                     className="h-12 min-w-[100px]"
                   >
                     {resendCooldown > 0 ? formatTime(resendCooldown) : "Resend"}
                   </Button>
                 </div>
 
-                <p className="text-xs text-muted-foreground space-y-1">
+                <div className="text-xs text-muted-foreground space-y-1">
                   <p className="text-destructive font-medium">
                     • Code expires in {formatTime(resendCooldown)}
                   </p>
                   <p>• After verification, your account will be activated immediately</p>
-                </p>
+                </div>
               </div>
 
               {/* Error Message */}
@@ -377,6 +379,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
               <div className="flex gap-3 pt-4">
                 <Button
                   variant="outline"
+                  type="button"
                   onClick={closeModal}
                   className="flex-1"
                   disabled={isVerifying}
@@ -385,6 +388,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
                 </Button>
                 <Button
                   variant="hero"
+                  type="button"
                   onClick={handleVerifyAndSubmit}
                   disabled={verificationCode.length !== 6 || isVerifying}
                   className="flex-1"
@@ -392,7 +396,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
                   {isVerifying ? (
                     <>
                       <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Verifying...
+                      Registering Account...
                     </>
                   ) : (
                     "Verify & Activate Account"
