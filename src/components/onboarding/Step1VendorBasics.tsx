@@ -11,7 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import SupportContact from "./SupportContact";
 import { useState, useEffect } from "react";
-import { CheckCircle2, RefreshCw } from "lucide-react";
+import { CheckCircle2, RefreshCw, Phone } from "lucide-react";
+import PhoneInput from "react-phone-number-input";
+import { parsePhoneNumber } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 
 interface Step1Props {
   formData: any;
@@ -50,17 +53,6 @@ const operatingAreas = [
   "Other",
 ];
 
-const countryCodes = [
-  { code: "+94", country: "🇱🇰 Sri Lanka" },
-  { code: "+1", country: "🇺🇸 USA" },
-  { code: "+44", country: "🇬🇧 UK" },
-  { code: "+91", country: "🇮🇳 India" },
-  { code: "+61", country: "🇦🇺 Australia" },
-  { code: "+49", country: "🇩🇪 Germany" },
-  { code: "+33", country: "🇫🇷 France" },
-  { code: "+971", country: "🇦🇪 UAE" },
-];
-
 const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [otp, setOtp] = useState("");
@@ -85,12 +77,13 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
 
   // Check if mobile number is valid for verification
   const isMobileNumberValid = () => {
-    const mobileNumber = formData.mobileNumber || "";
-    const countryCode = formData.countryCode || "+94";
-    
-    // Basic validation: at least 9 digits for most countries, adjust as needed
-    const minLength = countryCode === "+1" ? 10 : 9;
-    return mobileNumber.length >= minLength;
+    const phoneNumber = formData.phoneNumber || "";
+    try {
+      const parsed = parsePhoneNumber(phoneNumber);
+      return parsed && parsed.isValid();
+    } catch {
+      return false;
+    }
   };
 
   const handleSendVerification = () => {
@@ -104,10 +97,10 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
     setResendCooldown(30); // 30 seconds cooldown
     
     // Simulate API call to send OTP
-    console.log("Sending OTP to:", formData.countryCode + formData.mobileNumber);
+    console.log("Sending OTP to:", formData.phoneNumber);
     
     // In a real app, you would make an API call here:
-    // await sendOtp(formData.countryCode + formData.mobileNumber);
+    // await sendOtp(formData.phoneNumber);
   };
 
   const handleResendOtp = () => {
@@ -117,10 +110,10 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
     setResendCooldown(30);
     
     // Simulate API call to resend OTP
-    console.log("Resending OTP to:", formData.countryCode + formData.mobileNumber);
+    console.log("Resending OTP to:", formData.phoneNumber);
     
     // In a real app, you would make an API call here:
-    // await resendOtp(formData.countryCode + formData.mobileNumber);
+    // await resendOtp(formData.phoneNumber);
   };
 
   const handleVerifyOtp = () => {
@@ -135,13 +128,13 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
     console.log("Verifying OTP:", otp);
     
     // In a real app, you would make an API call here:
-    // const isValid = await verifyOtp(formData.countryCode + formData.mobileNumber, otp);
+    // const isValid = await verifyOtp(formData.phoneNumber, otp);
     
     // For demo purposes, assume OTP is valid if it's 6 digits and the last digit is not 0
     const isValid = otp.length === 6 && otp.charAt(5) !== '0';
     
     if (isValid) {
-      updateFormData("mobileVerified", true);
+      updateFormData("phoneVerified", true);
       setIsVerifying(false);
       setOtp("");
     } else {
@@ -153,16 +146,15 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
     setIsVerifying(false);
     setOtp("");
     setVerificationError("");
-    updateFormData("mobileVerified", false);
+    updateFormData("phoneVerified", false);
   };
 
-  const handleMobileNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, "");
-    updateFormData("mobileNumber", value);
+  const handlePhoneNumberChange = (value: string | undefined) => {
+    updateFormData("phoneNumber", value || "");
     
-    // Reset verification if mobile number changes
-    if (formData.mobileVerified) {
-      updateFormData("mobileVerified", false);
+    // Reset verification if phone number changes
+    if (formData.phoneVerified) {
+      updateFormData("phoneVerified", false);
     }
     if (isVerifying) {
       setIsVerifying(false);
@@ -170,6 +162,17 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
     }
     setVerificationError("");
   };
+
+  // Custom styles for PhoneInput component
+  const phoneInputStyles = {
+    '--PhoneInput-color--focus': 'hsl(var(--primary))',
+    '--PhoneInputCountrySelectArrow-color': 'hsl(var(--muted-foreground))',
+    '--PhoneInputCountrySelectArrow-color--focus': 'hsl(var(--primary))',
+    '--PhoneInputCountryFlag-borderColor': 'transparent',
+    '--PhoneInputCountryFlag-borderColor--focus': 'hsl(var(--primary))',
+    '--PhoneInputCountryFlag-height': '24px',
+    '--PhoneInputCountryFlag-width': '36px',
+  } as React.CSSProperties;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -312,10 +315,13 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
         {/* Mobile Number with Country Code */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">
-              Mobile Number <span className="text-destructive">*</span>
-            </Label>
-            {formData.mobileVerified && (
+            <div className="flex items-center gap-2">
+              <Phone className="w-4 h-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">
+                Mobile Number <span className="text-destructive">*</span>
+              </Label>
+            </div>
+            {formData.phoneVerified && (
               <div className="flex items-center gap-1 text-sm text-green-600">
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Verified</span>
@@ -323,129 +329,131 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
             )}
           </div>
           
-          <div className="flex gap-2">
-            <Select
-              value={formData.countryCode || "+94"}
-              onValueChange={(value) => {
-                updateFormData("countryCode", value);
-                // Reset verification if country code changes
-                if (formData.mobileVerified) {
-                  updateFormData("mobileVerified", false);
-                }
-                if (isVerifying) {
-                  setIsVerifying(false);
-                  setOtp("");
-                }
-              }}
-            >
-              <SelectTrigger className="w-[160px] h-12">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {countryCodes.map((item) => (
-                  <SelectItem key={item.code} value={item.code}>
-                    {item.country} {item.code}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex-1 flex gap-2">
-              <Input
-                type="tel"
-                placeholder="Mobile number"
-                value={formData.mobileNumber || ""}
-                onChange={handleMobileNumberChange}
-                className="flex-1"
-                disabled={isVerifying || formData.mobileVerified}
-              />
-              {!formData.mobileVerified && (
-                <Button
-                  type="button"
-                  onClick={handleSendVerification}
-                  disabled={!isMobileNumberValid() || isVerifying}
-                  variant={isVerifying ? "outline" : "default"}
-                  className="whitespace-nowrap"
-                >
-                  {isVerifying ? "Verifying..." : "Verify"}
-                </Button>
-              )}
-            </div>
-          </div>
-          
-          <p className="text-xs text-muted-foreground">
-            {isVerifying 
-              ? "Enter the OTP sent to your mobile number" 
-              : formData.mobileVerified
-                ? "Your mobile number has been verified successfully"
-                : "We'll send an OTP to verify this number"}
-          </p>
+<div className="space-y-2">
+  <div className="flex gap-2 items-stretch">
+    <div className="flex-1">
+      <div className={`
+        relative border rounded-lg transition-all duration-200
+        ${isVerifying || formData.phoneVerified ? "opacity-70 cursor-not-allowed" : ""}
+        ${verificationError ? "border-destructive" : "border-border"}
+        focus-within:border-primary focus-within:ring-1 focus-within:ring-primary
+        h-12
+      `}>
+        <PhoneInput
+          international
+          defaultCountry="LK"
+          value={formData.phoneNumber || ""}
+          onChange={handlePhoneNumberChange}
+          disabled={isVerifying || formData.phoneVerified}
+          className={`
+            PhoneInput
+            w-full h-full px-3 bg-background rounded-lg
+            ${isVerifying || formData.phoneVerified ? "cursor-not-allowed" : ""}
+          `}
+          style={phoneInputStyles}
+        />
+      </div>
+    </div>
+    {!formData.phoneVerified && (
+      <Button
+        type="button"
+        onClick={handleSendVerification}
+        disabled={!isMobileNumberValid() || isVerifying}
+        variant={isVerifying ? "outline" : "default"}
+        className="whitespace-nowrap min-w-[100px] h-12"
+      >
+        {isVerifying ? "Sending..." : "Send OTP"}
+      </Button>
+    )}
+  </div>
+  
+  <p className="text-xs text-muted-foreground">
+    {isVerifying 
+      ? "Enter the OTP sent to your mobile number" 
+      : formData.phoneVerified
+        ? "Your mobile number has been verified successfully"
+        : "We'll send an OTP to verify this number"}
+  </p>
+</div>
 
           {/* OTP Verification Section */}
           {isVerifying && (
-            <div className="space-y-3 p-4 border rounded-lg bg-muted/20 animate-slide-down">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Enter OTP <span className="text-destructive">*</span>
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={6}
-                    placeholder="000000"
-                    value={otp}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, "").slice(0, 6);
-                      setOtp(value);
-                      setVerificationError("");
-                    }}
-                    className="text-center text-lg font-mono tracking-widest"
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleVerifyOtp}
-                    disabled={otp.length !== 6}
-                  >
-                    Verify OTP
-                  </Button>
-                </div>
-                
+            <div className="space-y-4 p-4 border rounded-lg bg-gradient-to-br from-muted/20 to-muted/5 animate-slide-down">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCancelVerification}
-                    className="h-8"
-                  >
-                    Cancel
-                  </Button>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleResendOtp}
-                    disabled={resendCooldown > 0}
-                    className="h-8 gap-1"
-                  >
-                    {resendCooldown > 0 ? (
-                      <>
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                        Resend in {resendCooldown}s
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="w-3 h-3" />
-                        Resend OTP
-                      </>
-                    )}
-                  </Button>
+                  <Label className="text-sm font-medium">
+                    Enter Verification Code <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      {formData.phoneNumber}
+                    </span>
+                  </div>
                 </div>
                 
-                <div className="text-xs text-muted-foreground">
-                  Enter the 6-digit code sent to {formData.countryCode} {formData.mobileNumber}
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      placeholder="Enter 6-digit code"
+                      value={otp}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                        setOtp(value);
+                        setVerificationError("");
+                      }}
+                      className="text-center text-xl font-mono tracking-widest h-12"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleVerifyOtp}
+                      disabled={otp.length !== 6}
+                      className="h-12 min-w-[120px]"
+                    >
+                      Verify OTP
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCancelVerification}
+                      className="h-9"
+                    >
+                      Cancel
+                    </Button>
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResendOtp}
+                      disabled={resendCooldown > 0}
+                      className="h-9 gap-2"
+                    >
+                      {resendCooldown > 0 ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          <span className="font-mono">Resend in {resendCooldown}s</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3 h-3" />
+                          Resend OTP
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>• The code will expire in 10 minutes</p>
+                  <p>• Didn't receive the code? Check your spam folder or request a new code</p>
                 </div>
               </div>
             </div>
@@ -453,7 +461,7 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
 
           {/* Error Message */}
           {verificationError && (
-            <div className="text-sm text-destructive animate-fade-in">
+            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg animate-fade-in">
               {verificationError}
             </div>
           )}

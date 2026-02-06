@@ -79,3 +79,80 @@
           width: 100%;
           height: 100%;
         }
+/* PhoneInput Custom Styles */
+.PhoneInput {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.PhoneInput input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+  margin-left: 0.5rem;
+}
+
+.PhoneInput input::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.7;
+}
+
+.PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.PhoneInputCountrySelect {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0;
+  min-width: 80px;
+}
+
+.PhoneInputCountrySelectArrow {
+  margin-left: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.PhoneInputCountrySelect:focus .PhoneInputCountrySelectArrow,
+.PhoneInputCountrySelect:hover .PhoneInputCountrySelectArrow {
+  opacity: 1;
+}
+
+.PhoneInputCountryIcon {
+  width: 1.5rem;
+  height: 1rem;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px hsl(var(--border));
+}
+
+.PhoneInputCountryIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Disabled state */
+.PhoneInput--disabled .PhoneInputCountrySelect {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.PhoneInput--disabled input {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
