@@ -2,40 +2,128 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { RoleBasedRoute } from "@/components/RoleBasedRoute";
 import Index from "./pages/Index";
 import Onboarding from "./pages/Onboarding";
 import VendorDashboard from "./pages/VendorDashboard";
 import VendorLogin from "./pages/VendorLogin";
 import VendorProfile from "./pages/VendorProfile";
 import AdminDashboard from "./pages/AdminDashboard";
+import VendorRegistrationSuccess from "./pages/VendorRegistrationSuccess";
 import NotFound from "./pages/NotFound";
+import LoadingScreen from "@/components/LoadingScreen";
+import TestConnection from './components/TestConnection';
 
-const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+// Initialize QueryClient
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    },
+  },
+});
+
+// App content wrapped with AuthProvider
+const AppContent = () => {
+  const { user, loading, refreshUser } = useAuth();
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize auth on app start
+  useEffect(() => {
+    const initAuth = async () => {
+      await refreshUser();
+      setIsInitialized(true);
+    };
+    initAuth();
+  }, [refreshUser]);
+
+  // Show loading screen while initializing
+  if (!isInitialized || loading) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <>
       {/* Global Background with Glassmorphism */}
-      <div 
+      <div
         className="site-background"
         style={{ backgroundImage: `url(${'/assets/site-background.jpg'})` }}
       />
-      
+
       <Toaster />
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<Index />} />
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/vendor-login" element={<VendorLogin />} />
-          <Route path="/vendor-dashboard" element={<VendorDashboard />} />
-          <Route path="/vendor-profile" element={<VendorProfile />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/vendor-registration-success" element={<VendorRegistrationSuccess />} />
+
+          {/* Authentication Routes */}
+          <Route
+            path="/vendor-login"
+            element={
+              !user ? <VendorLogin /> : <Navigate to="/vendor-dashboard" />
+            }
+          />
+
+          {/* Protected Routes - Vendor Access */}
+          <Route
+            path="/vendor-dashboard"
+            element={
+              <ProtectedRoute>
+                <RoleBasedRoute allowedRoles={['vendor', 'admin']}>
+                  <VendorDashboard />
+                </RoleBasedRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/vendor-profile"
+            element={
+              <ProtectedRoute>
+                <RoleBasedRoute allowedRoles={['vendor', 'admin']}>
+                  <VendorProfile />
+                </RoleBasedRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Routes - Admin Only */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <RoleBasedRoute allowedRoles={['admin']}>
+                  <AdminDashboard />
+                </RoleBasedRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 404 Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
-    </TooltipProvider>
+    </>
+  );
+};
+
+// Main App component
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <AppContent />
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

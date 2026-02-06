@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,268 +54,150 @@ import {
   Filter,
   Download,
   LogOut,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { vendorService } from "@/services/vendorService";
 
-// Mock vendor submissions data
-const mockVendorSubmissions = [
-  {
-    id: "V001",
-    submittedAt: "2024-01-10",
-    status: "pending",
-    vendorType: "Tours & Experiences",
-    businessName: "Ceylon Adventures",
-    legalName: "Ceylon Adventures Pvt Ltd",
-    contactPerson: "Kasun Perera",
-    countryCode: "+94",
-    mobileNumber: "771234567",
-    email: "info@ceylonadventures.lk",
-    operatingAreas: ["Colombo", "Galle", "Kandy", "Ella", "Sigiriya"],
-    businessRegNumber: "PV123456",
-    taxId: "VAT123456789",
-    businessAddress: "123 Temple Road, Colombo 03, Sri Lanka",
-    services: [
-      {
-        serviceName: "Sunset Beach Safari",
-        serviceCategory: "Guided Tour",
-        shortDescription: "Experience the breathtaking beauty of Sri Lanka's southern coastline with our exclusive sunset beach safari.",
-        whatsIncluded: "Transport, Guide, Refreshments, Photography",
-        whatsNotIncluded: "Personal expenses, Tips",
-        durationValue: "4",
-        durationUnit: "hours",
-        languagesOffered: ["English", "Sinhala", "German"],
-        groupSizeMin: "2",
-        groupSizeMax: "12",
-        operatingHoursFrom: "3",
-        operatingHoursFromPeriod: "PM",
-        operatingHoursTo: "7",
-        operatingHoursToPeriod: "PM",
-        operatingDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-        locationsCovered: ["Galle", "Matara", "Hambantota"],
-        advanceBooking: "24 hours",
-        cancellationPolicy: "Free cancellation up to 24 hours before the tour",
-      },
-    ],
-    pricing: [
-      {
-        currency: "USD",
-        retailPrice: "89",
-        commission: "15",
-        netPrice: "75.65",
-        dailyCapacity: "24",
-      },
-    ],
-    hasLogo: true,
-    hasCoverImage: true,
-    galleryCount: 5,
-    hasPromoVideo: true,
-    marketingPermission: true,
-    bankName: "Bank of Ceylon",
-    accountHolderName: "Ceylon Adventures Pvt Ltd",
-    accountNumber: "7891234567",
-    payoutFrequency: "weekly",
-    documents: {
-      businessRegistration: "business_reg_cert.pdf",
-      nicPassport: "nic_kasun.pdf",
-      tourismLicense: "sltda_license.pdf",
-    },
-  },
-  {
-    id: "V002",
-    submittedAt: "2024-01-12",
-    status: "pending",
-    vendorType: "Accommodation",
-    businessName: "Lotus Villa Resort",
-    legalName: "Lotus Hospitality Lanka Ltd",
-    contactPerson: "Anjali Fernando",
-    countryCode: "+94",
-    mobileNumber: "779876543",
-    email: "reservations@lotusvilla.lk",
-    operatingAreas: ["Negombo", "Colombo"],
-    businessRegNumber: "PV789012",
-    taxId: "VAT987654321",
-    businessAddress: "45 Beach Road, Negombo, Sri Lanka",
-    services: [
-      {
-        serviceName: "Deluxe Ocean View Room",
-        serviceCategory: "Accommodation",
-        shortDescription: "Spacious rooms with stunning ocean views and modern amenities.",
-        whatsIncluded: "Breakfast, WiFi, Pool access",
-        whatsNotIncluded: "Airport transfer, Mini bar",
-        durationValue: "1",
-        durationUnit: "night",
-        languagesOffered: ["English", "Sinhala"],
-        groupSizeMin: "1",
-        groupSizeMax: "3",
-        operatingHoursFrom: "2",
-        operatingHoursFromPeriod: "PM",
-        operatingHoursTo: "12",
-        operatingHoursToPeriod: "PM",
-        operatingDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        locationsCovered: ["Negombo"],
-        advanceBooking: "Same day",
-        cancellationPolicy: "Free cancellation up to 48 hours before check-in",
-      },
-    ],
-    pricing: [
-      {
-        currency: "USD",
-        retailPrice: "120",
-        commission: "12",
-        netPrice: "105.60",
-        dailyCapacity: "15",
-      },
-    ],
-    hasLogo: true,
-    hasCoverImage: true,
-    galleryCount: 8,
-    hasPromoVideo: false,
-    marketingPermission: true,
-    bankName: "Commercial Bank",
-    accountHolderName: "Lotus Hospitality Lanka Ltd",
-    accountNumber: "4561237890",
-    payoutFrequency: "bi-weekly",
-    documents: {
-      businessRegistration: "lotus_reg.pdf",
-      nicPassport: "nic_anjali.pdf",
-      tourismLicense: "hotel_license.pdf",
-    },
-  },
-  {
-    id: "V003",
-    submittedAt: "2024-01-08",
-    status: "approved",
-    vendorType: "Dining & Food",
-    businessName: "Spice Garden Restaurant",
-    legalName: "Spice Garden Colombo Pvt Ltd",
-    contactPerson: "Rohan Silva",
-    countryCode: "+94",
-    mobileNumber: "775551234",
-    email: "hello@spicegarden.lk",
-    operatingAreas: ["Colombo"],
-    businessRegNumber: "PV456789",
-    taxId: "VAT456789123",
-    businessAddress: "78 Galle Face Terrace, Colombo 03",
-    services: [
-      {
-        serviceName: "Traditional Sri Lankan Dinner Experience",
-        serviceCategory: "Dining Experience",
-        shortDescription: "Authentic multi-course Sri Lankan dinner with live cultural performance.",
-        whatsIncluded: "7-course meal, Drinks, Cultural show",
-        whatsNotIncluded: "Alcohol, Transport",
-        durationValue: "3",
-        durationUnit: "hours",
-        languagesOffered: ["English", "Sinhala", "Japanese"],
-        groupSizeMin: "2",
-        groupSizeMax: "20",
-        operatingHoursFrom: "6",
-        operatingHoursFromPeriod: "PM",
-        operatingHoursTo: "10",
-        operatingHoursToPeriod: "PM",
-        operatingDays: ["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        locationsCovered: ["Colombo"],
-        advanceBooking: "48 hours",
-        cancellationPolicy: "Full refund if cancelled 24 hours before",
-      },
-    ],
-    pricing: [
-      {
-        currency: "USD",
-        retailPrice: "45",
-        commission: "15",
-        netPrice: "38.25",
-        dailyCapacity: "40",
-      },
-    ],
-    hasLogo: true,
-    hasCoverImage: true,
-    galleryCount: 12,
-    hasPromoVideo: true,
-    marketingPermission: true,
-    bankName: "Sampath Bank",
-    accountHolderName: "Spice Garden Colombo Pvt Ltd",
-    accountNumber: "1234567890",
-    payoutFrequency: "weekly",
-    documents: {
-      businessRegistration: "spice_reg.pdf",
-      nicPassport: "nic_rohan.pdf",
-      tourismLicense: "food_license.pdf",
-    },
-  },
-  {
-    id: "V004",
-    submittedAt: "2024-01-05",
-    status: "rejected",
-    vendorType: "Transport",
-    businessName: "Quick Cabs Lanka",
-    legalName: "Quick Transport Services",
-    contactPerson: "Malik Jayawardena",
-    countryCode: "+94",
-    mobileNumber: "772223344",
-    email: "bookings@quickcabs.lk",
-    operatingAreas: ["Colombo", "Galle", "Kandy"],
-    businessRegNumber: "PV111222",
-    taxId: "",
-    businessAddress: "12 Station Road, Colombo 10",
-    services: [
-      {
-        serviceName: "Airport Transfer",
-        serviceCategory: "Private Transfer",
-        shortDescription: "Comfortable airport pickup and drop-off service.",
-        whatsIncluded: "AC vehicle, Driver, Bottled water",
-        whatsNotIncluded: "Waiting time charges",
-        durationValue: "1",
-        durationUnit: "hours",
-        languagesOffered: ["English", "Sinhala"],
-        groupSizeMin: "1",
-        groupSizeMax: "4",
-        operatingHoursFrom: "12",
-        operatingHoursFromPeriod: "AM",
-        operatingHoursTo: "11",
-        operatingHoursToPeriod: "PM",
-        operatingDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        locationsCovered: ["Colombo", "Negombo"],
-        advanceBooking: "6 hours",
-        cancellationPolicy: "No refund for same-day cancellations",
-      },
-    ],
-    pricing: [
-      {
-        currency: "USD",
-        retailPrice: "35",
-        commission: "10",
-        netPrice: "31.50",
-        dailyCapacity: "50",
-      },
-    ],
-    hasLogo: false,
-    hasCoverImage: true,
-    galleryCount: 3,
-    hasPromoVideo: false,
-    marketingPermission: false,
-    bankName: "People's Bank",
-    accountHolderName: "Malik Jayawardena",
-    accountNumber: "9876543210",
-    payoutFrequency: "monthly",
-    documents: {
-      businessRegistration: "",
-      nicPassport: "nic_malik.pdf",
-      tourismLicense: "",
-    },
-    rejectionReason: "Missing business registration certificate and tourism license.",
-  },
-];
-
-type VendorSubmission = typeof mockVendorSubmissions[0];
+// Define the shape of our frontend vendor object (mapping from backend)
+interface VendorSubmission {
+  id: string;
+  submittedAt: string;
+  status: string;
+  vendorType: string;
+  businessName: string;
+  legalName: string;
+  contactPerson: string;
+  countryCode: string; // Backend might combine this, we'll parse or default
+  mobileNumber: string;
+  email: string;
+  operatingAreas: string[];
+  businessRegNumber: string;
+  taxId: string;
+  businessAddress: string;
+  services: any[];
+  pricing: any[]; // Mapped from service pricing
+  hasLogo: boolean;
+  hasCoverImage: boolean;
+  galleryCount: number;
+  hasPromoVideo: boolean;
+  marketingPermission: boolean;
+  bankName: string;
+  accountHolderName: string;
+  accountNumber: string;
+  payoutFrequency: string; // Not in current backend, default or map
+  documents: {
+    businessRegistration: string;
+    nicPassport: string;
+    tourismLicense: string;
+  };
+  rejectionReason?: string;
+}
 
 const AdminDashboard = () => {
-  const [vendors, setVendors] = useState(mockVendorSubmissions);
+  const [vendors, setVendors] = useState<VendorSubmission[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedVendor, setSelectedVendor] = useState<VendorSubmission | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rejectionReason, setRejectionReason] = useState("");
+
+  const fetchVendors = async () => {
+    setIsLoading(true);
+    try {
+      const response = await vendorService.getVendors();
+      if (response.success && response.vendors) {
+        // Map backend data to frontend structure
+        const mappedVendors: VendorSubmission[] = await Promise.all(response.vendors.map(async (v: any) => {
+          // Fetch full details including services and files (assuming getVendors returns basics, or fetch individually if needed)
+          // Ideally getVendors returns enough, but we might need services. 
+          // Let's assume for now we use what we have, or fetch detail on click. 
+          // Actually, getVendors in service returns VendorDetails structure. 
+
+          // Note: In a real app, we might optimize this query or the backend returns more data.
+          // For now, let's try to fetch details for each to get services, OR just map what we have.
+          // Since the UI needs service count/details for the table/modal, let's assume we fetch detail when opening modal,
+          // OR we fetch all now. Let's start with basic headers and fetch details on view.
+          // BUT the existing UI relies on 'services' array being present. 
+
+          let fullVendor = v;
+          let services = [];
+
+          try {
+            const detail = await vendorService.getVendor(v.id);
+            if (detail.success) {
+              fullVendor = detail.vendor;
+              services = detail.services || [];
+            }
+          } catch (e) {
+            console.error("Failed to fetch detail for", v.id);
+          }
+
+          return {
+            id: fullVendor.id,
+            submittedAt: new Date(fullVendor.created_at).toISOString().split('T')[0],
+            status: fullVendor.status,
+            vendorType: fullVendor.vendor_type,
+            businessName: fullVendor.business_name,
+            legalName: fullVendor.legal_name || "",
+            contactPerson: fullVendor.contact_person,
+            countryCode: "+94", // Default
+            mobileNumber: fullVendor.phone_number,
+            email: fullVendor.email,
+            operatingAreas: fullVendor.operating_areas || [],
+            businessRegNumber: fullVendor.business_reg_number || "",
+            taxId: fullVendor.tax_id || "",
+            businessAddress: fullVendor.business_address || "",
+            services: services.map((s: any) => ({
+              serviceName: s.service_name,
+              serviceCategory: s.service_category,
+              shortDescription: s.short_description,
+              durationValue: s.duration_value,
+              durationUnit: s.duration_unit,
+              groupSizeMin: s.group_size_min,
+              groupSizeMax: s.group_size_max,
+              retailPrice: s.retail_price,
+              currency: s.currency,
+              netPrice: (s.retail_price * 0.85).toFixed(2), // Mock commission calc
+            })),
+            pricing: services.map((s: any) => ({
+              currency: s.currency,
+              retailPrice: s.retail_price,
+              netPrice: (s.retail_price * 0.85).toFixed(2),
+            })),
+            hasLogo: !!fullVendor.logo_url,
+            hasCoverImage: !!fullVendor.cover_image_url,
+            galleryCount: (fullVendor.gallery_urls || []).length,
+            hasPromoVideo: false, // Not in schema yet
+            marketingPermission: fullVendor.marketing_permission,
+            bankName: fullVendor.bank_name,
+            accountHolderName: fullVendor.account_holder_name,
+            accountNumber: fullVendor.account_number,
+            payoutFrequency: "monthly", // Default
+            documents: {
+              businessRegistration: fullVendor.reg_certificate_url,
+              nicPassport: fullVendor.nic_passport_url,
+              tourismLicense: fullVendor.tourism_license_url,
+            },
+            rejectionReason: fullVendor.status_reason,
+          };
+        }));
+
+        setVendors(mappedVendors);
+      }
+    } catch (error) {
+      console.error("Failed to fetch vendors:", error);
+      toast.error("Failed to load vendors");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVendors();
+  }, []);
 
   const filteredVendors = vendors.filter((vendor) => {
     const matchesSearch =
@@ -340,26 +222,39 @@ const AdminDashboard = () => {
     setIsDetailOpen(true);
   };
 
-  const handleApprove = (vendorId: string) => {
-    setVendors((prev) =>
-      prev.map((v) => (v.id === vendorId ? { ...v, status: "approved" } : v))
-    );
-    setIsDetailOpen(false);
-    toast.success("Vendor approved successfully!");
+  const handleApprove = async (vendorId: string) => {
+    try {
+      await vendorService.updateVendorStatus(vendorId, "approved");
+      setVendors((prev) =>
+        prev.map((v) => (v.id === vendorId ? { ...v, status: "approved" } : v))
+      );
+      setIsDetailOpen(false);
+      toast.success("Vendor approved successfully!");
+      fetchVendors(); // Refresh to ensure sync
+    } catch (error) {
+      toast.error("Failed to approve vendor");
+    }
   };
 
-  const handleReject = (vendorId: string) => {
+  const handleReject = async (vendorId: string) => {
     if (!rejectionReason.trim()) {
       toast.error("Please provide a rejection reason.");
       return;
     }
-    setVendors((prev) =>
-      prev.map((v) =>
-        v.id === vendorId ? { ...v, status: "rejected", rejectionReason } : v
-      )
-    );
-    setIsDetailOpen(false);
-    toast.success("Vendor rejected.");
+
+    try {
+      await vendorService.updateVendorStatus(vendorId, "rejected", rejectionReason);
+      setVendors((prev) =>
+        prev.map((v) =>
+          v.id === vendorId ? { ...v, status: "rejected", rejectionReason } : v
+        )
+      );
+      setIsDetailOpen(false);
+      toast.success("Vendor rejected.");
+      fetchVendors();
+    } catch (error) {
+      toast.error("Failed to reject vendor");
+    }
   };
 
   const getStatusBadge = (status: string) => {

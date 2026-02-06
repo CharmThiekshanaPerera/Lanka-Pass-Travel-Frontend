@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { CalendarDays, FileCheck, Shield, AlertCircle, MailCheck, RefreshCw } from "lucide-react";
 import SupportContact from "./SupportContact";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { vendorService } from "@/services/vendorService";
 
 interface Step7Props {
   formData: any;
@@ -15,6 +17,7 @@ interface Step7Props {
 }
 
 const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: Step7Props) => {
+  const navigate = useNavigate();
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerificationSent, setIsVerificationSent] = useState(false);
@@ -23,10 +26,10 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
   const [verificationSuccess, setVerificationSuccess] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const allChecked = 
-    formData.acceptTerms && 
-    formData.acceptCommission && 
-    formData.acceptCancellation && 
+  const allChecked =
+    formData.acceptTerms &&
+    formData.acceptCommission &&
+    formData.acceptCancellation &&
     formData.grantRights &&
     formData.confirmAccuracy;
 
@@ -40,11 +43,11 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
 
   const handleSubmitClick = () => {
     if (!allChecked) return;
-    
+
     setShowVerificationModal(true);
     setVerificationError("");
     setVerificationSuccess("");
-    
+
     // Send verification email automatically when modal opens
     if (!isVerificationSent) {
       sendVerificationEmail();
@@ -60,16 +63,16 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
     console.log("Sending verification email to:", formData.email);
     setIsVerificationSent(true);
     setResendCooldown(900); // 15 minutes cooldown (900 seconds)
-    
+
     // In a real app, you would make an API call here:
     // await sendVerificationEmail(formData.email);
-    
+
     setVerificationSuccess(`Verification code sent to ${formData.email}. Code expires in 15 minutes.`);
   };
 
   const handleResendVerification = () => {
     if (resendCooldown > 0) return;
-    
+
     setVerificationError("");
     setVerificationSuccess("");
     sendVerificationEmail();
@@ -83,26 +86,42 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
 
     setIsVerifying(true);
     setVerificationError("");
-    
-    // Simulate API call to verify code
-    console.log("Verifying code:", verificationCode);
-    
-    // In a real app, you would make an API call here:
-    // const isValid = await verifyEmailCode(formData.email, verificationCode);
-    
-    // For demo purposes, assume code is valid if it's 6 digits and the last digit is not 0
-    const isValid = verificationCode.length === 6 && verificationCode.charAt(5) !== '0';
-    
-    if (isValid) {
-      setVerificationSuccess("Email verified successfully! Activating your account...");
-      
-      // Wait a moment to show success, then submit
-      setTimeout(() => {
-        setShowVerificationModal(false);
-        onSubmit();
-      }, 1500);
-    } else {
-      setVerificationError("Invalid verification code. Please try again.");
+
+    try {
+      // For demo purposes, assume code is valid if it's 6 digits and the last digit is not 0
+      const isValid = verificationCode.length === 6 && verificationCode.charAt(5) !== '0';
+
+      if (isValid) {
+        setVerificationSuccess("Email verified successfully! Submitting your application...");
+
+        // Submit vendor registration to backend
+        const result = await vendorService.registerVendor(formData);
+
+        if (result.success) {
+          setVerificationSuccess("Application submitted successfully! Redirecting...");
+
+          // Navigate to success page
+          setTimeout(() => {
+            setShowVerificationModal(false);
+            navigate('/vendor-registration-success', {
+              state: {
+                vendorId: result.vendor_id,
+                businessName: formData.businessName,
+                email: formData.email
+              }
+            });
+          }, 2000);
+        } else {
+          setVerificationError(result.message || "Registration failed. Please try again.");
+          setIsVerifying(false);
+        }
+      } else {
+        setVerificationError("Invalid verification code. Please try again.");
+        setIsVerifying(false);
+      }
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      setVerificationError(`Submission failed: ${error.message}`);
       setIsVerifying(false);
     }
   };
@@ -266,7 +285,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">
-          By clicking submit, a verification code will be sent to your email to activate your account. 
+          By clicking submit, a verification code will be sent to your email to activate your account.
           Code expires in 15 minutes.
         </p>
 
@@ -332,7 +351,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
                     {resendCooldown > 0 ? formatTime(resendCooldown) : "Resend"}
                   </Button>
                 </div>
-                
+
                 <p className="text-xs text-muted-foreground space-y-1">
                   <p className="text-destructive font-medium">
                     • Code expires in {formatTime(resendCooldown)}
