@@ -24,6 +24,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -143,6 +144,7 @@ interface VendorSubmission {
   payoutFrequency?: string;
   payoutCycle?: string;
   payoutDate?: string;
+  isPublic?: boolean;
 }
 
 const AdminDashboard = () => {
@@ -314,6 +316,7 @@ const AdminDashboard = () => {
           logoUrl: v.logo_url,
           coverImageUrl: v.cover_image_url,
           galleryUrls: v.gallery_urls || [],
+          isPublic: v.is_public || false
         }));
         setVendors(mappedVendors);
       }
@@ -618,7 +621,26 @@ const AdminDashboard = () => {
         handleViewDetails(selectedVendor);
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to update service status");
+    }
+  };
+
+  const handleTogglePublic = async (vendorId: string, isPublic: boolean) => {
+    try {
+      setProcessingVendorId(vendorId);
+      const vendor = vendors.find(v => v.id === vendorId);
+      if (!vendor) return;
+
+      await vendorService.updateVendorStatus(vendorId, vendor.status, undefined, undefined, isPublic);
+
+      setVendors(prev => prev.map(v =>
+        v.id === vendorId ? { ...v, isPublic } : v
+      ));
+
+      toast.success(isPublic ? "Vendor added to public list" : "Vendor removed from public list");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update public status");
+    } finally {
+      setProcessingVendorId(null);
     }
   };
 
@@ -751,7 +773,7 @@ const AdminDashboard = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-8">
+          <TabsList className="mb-8 hidden md:flex">
             <TabsTrigger value="overview" className="gap-2">
               <LayoutDashboard className="w-4 h-4" />
               Overview
@@ -766,12 +788,61 @@ const AdminDashboard = () => {
               )}
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="managers" className="gap-2">
-                <Users className="w-4 h-4" />
-                Managers
-              </TabsTrigger>
+              <>
+                <TabsTrigger value="public-vendors" className="gap-2">
+                  <Globe className="w-4 h-4" />
+                  Public Vendors
+                </TabsTrigger>
+                <TabsTrigger value="managers" className="gap-2">
+                  <Users className="w-4 h-4" />
+                  Managers
+                </TabsTrigger>
+              </>
             )}
           </TabsList>
+
+          <div className="mb-6 md:hidden">
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="w-full bg-background border-input ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                <SelectValue placeholder="Select View" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="overview">
+                  <div className="flex items-center gap-2">
+                    <LayoutDashboard className="w-4 h-4" />
+                    Overview
+                  </div>
+                </SelectItem>
+                <SelectItem value="support">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    Notifications
+                    {totalActionableCount > 0 && (
+                      <span className="ml-1 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">
+                        {totalActionableCount}
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+                {isAdmin && (
+                  <>
+                    <SelectItem value="public-vendors">
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4" />
+                        Public Vendors
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="managers">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        Managers
+                      </div>
+                    </SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
 
           <TabsContent value="overview">
             {/* Stats Cards */}
@@ -883,6 +954,7 @@ const AdminDashboard = () => {
                       <TableHead>Contact</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-center">Public</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -913,6 +985,15 @@ const AdminDashboard = () => {
                           <span className="text-sm">{vendor.submittedAt}</span>
                         </TableCell>
                         <TableCell>{getStatusBadge(vendor.status)}</TableCell>
+                        <TableCell className="text-center">
+                          {vendor.isPublic ? (
+                            <div className="flex justify-center">
+                              <Globe className="w-4 h-4 text-primary" />
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1004,6 +1085,22 @@ const AdminDashboard = () => {
                                 <FileDown className="mr-2 h-4 w-4" />
                                 Generate Document
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleTogglePublic(vendor.id, !vendor.isPublic)}
+                                className="gap-2"
+                              >
+                                {vendor.isPublic ? (
+                                  <>
+                                    <UserMinus className="mr-2 h-4 w-4" />
+                                    Remove from Public
+                                  </>
+                                ) : (
+                                  <>
+                                    <Globe className="mr-2 h-4 w-4" />
+                                    Make Public
+                                  </>
+                                )}
+                              </DropdownMenuItem>
                               <Separator className="my-1" />
                               {vendor.status !== "approved" && (
                                 <DropdownMenuItem onClick={() => handleStatusChange(vendor.id, "approved")}>
@@ -1039,6 +1136,90 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="public-vendors" className="space-y-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Public Vendors</h2>
+                  <p className="text-muted-foreground">Manage vendors visible in the public directory.</p>
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2">
+                      <UserPlus className="w-4 h-4" />
+                      Add Public Vendor
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Add Public Vendor</DialogTitle>
+                      <DialogDescription>Select an approved vendor to make public.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Select onValueChange={(val) => handleTogglePublic(val, true)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select vendor..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vendors
+                            .filter(v => v.status === 'approved' && !v.isPublic)
+                            .map(v => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.businessName}
+                              </SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {vendors.filter(v => v.isPublic).map(vendor => (
+                  <Card key={vendor.id} className="overflow-hidden group relative hover:shadow-lg transition-shadow">
+                    <div className="aspect-video bg-muted relative">
+                      {vendor.coverImageUrl ? (
+                        <img src={vendor.coverImageUrl} alt={vendor.businessName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-muted/50">
+                          <ImageIcon className="w-8 h-8 text-muted-foreground/50" />
+                        </div>
+                      )}
+                      {vendor.logoUrl && (
+                        <div className="absolute -bottom-6 left-4 w-12 h-12 rounded-lg border-4 border-background overflow-hidden bg-white shadow-sm">
+                          <img src={vendor.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                        onClick={() => handleTogglePublic(vendor.id, false)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <CardContent className="pt-8 px-4 pb-4">
+                      <h3 className="font-semibold truncate">{vendor.businessName}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-[10px] h-5">{vendor.vendorType}</Badge>
+                        <span className="text-xs text-muted-foreground truncate opacity-70">{vendor.operatingAreas?.[0]}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {vendors.filter(v => v.isPublic).length === 0 && (
+                  <div className="col-span-full text-center py-12 text-muted-foreground bg-muted/30 rounded-lg border border-dashed text-sm">
+                    <Globe className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                    <p>No public vendors selected</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="managers">
