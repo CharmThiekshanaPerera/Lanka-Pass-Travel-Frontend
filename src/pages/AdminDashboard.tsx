@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Label } from "@/components/ui/label";
 
 import {
   Table,
@@ -71,6 +72,7 @@ import {
   ChevronRight,
   MoreVertical,
   FileDown,
+  Pencil,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -145,6 +147,27 @@ interface VendorSubmission {
   payoutCycle?: string;
   payoutDate?: string;
   isPublic?: boolean;
+  phone?: string;
+  website?: string;
+  userId?: string;
+}
+
+interface VendorProfileUpdate {
+  business_name?: string;
+  vendor_type?: string;
+  contact_person?: string;
+  phone_number?: string;
+  business_address?: string;
+  operating_areas?: string[];
+  email?: string;
+  website?: string;
+  bank_name?: string;
+  account_holder_name?: string;
+  account_number?: string;
+  bank_branch?: string;
+  payout_frequency?: string;
+  payout_cycle?: string;
+  payout_date?: string;
 }
 
 const AdminDashboard = () => {
@@ -184,6 +207,62 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [targetRequestId, setTargetRequestId] = useState<string | null>(null);
 
+  // Edit Vendor State
+  const [editingVendor, setEditingVendor] = useState<VendorSubmission | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // Password Reset State
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+
+  // Edit Form State (local to avoid mutating vendors directly until save)
+  const [editFormData, setEditFormData] = useState<VendorProfileUpdate>({});
+
+  const handleEditClick = (vendor: VendorSubmission) => {
+    setEditingVendor(vendor);
+    setEditFormData({
+      business_name: vendor.businessName,
+      vendor_type: vendor.vendorType,
+      contact_person: vendor.contactPerson,
+      phone_number: vendor.mobileNumber || vendor.phone || "",
+      business_address: vendor.businessAddress,
+      operating_areas: vendor.operatingAreas,
+      email: vendor.email,
+      website: vendor.website,
+      bank_name: vendor.bankName,
+      account_holder_name: vendor.accountHolderName,
+      account_number: vendor.accountNumber,
+      bank_branch: vendor.bankBranch,
+      payout_frequency: vendor.payoutFrequency,
+      payout_cycle: vendor.payoutCycle,
+      payout_date: vendor.payoutDate,
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVendor) return;
+
+    try {
+      setProcessingVendorId(editingVendor.id);
+      await vendorService.adminUpdateVendorProfile(editingVendor.id, editFormData);
+
+      // Notify vendor
+      await chatService.sendMessage(editingVendor.id, "Your vendor profile details have been updated by an administrator.");
+
+      toast.success("Vendor profile updated successfully");
+      setIsEditOpen(false);
+      fetchVendors();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setProcessingVendorId(null);
+    }
+  };
+
   const handleCommissionChange = (serviceId: string, value: string) => {
     setCommissionValues(prev => ({ ...prev, [serviceId]: value }));
   };
@@ -201,6 +280,19 @@ const AdminDashboard = () => {
         `/api/admin/services/${serviceId}/commission`,
         { commission_percent: Number(value) }
       );
+
+      // Find service name for notification
+      const service = selectedVendor?.services.find((s: any) => s.id === serviceId);
+      const serviceName = service?.serviceName || "Service";
+
+      // Notify vendor via chat
+      if (selectedVendor) {
+        await chatService.sendMessage(
+          selectedVendor.id,
+          `Commission for your service "${serviceName}" has been updated to ${value}%.`
+        );
+      }
+
       toast.success("Commission updated successfully");
 
       // Refresh vendor details to show new calculations
@@ -250,6 +342,31 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetPasswordUserId || !newPassword) {
+      toast.error("Please enter a new password");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      await vendorService.resetPassword(resetPasswordUserId, newPassword);
+      toast.success("Password reset successfully");
+      setResetPasswordOpen(false);
+      setNewPassword("");
+      setResetPasswordUserId(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to reset password");
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -289,6 +406,7 @@ const AdminDashboard = () => {
           countryCode: "+94",
           mobileNumber: v.phone_number || "",
           email: v.email || "",
+          website: v.website || "",
           operatingAreas: v.operating_areas || [],
           businessRegNumber: v.business_reg_number || "",
           taxId: v.tax_id || "",
@@ -316,7 +434,8 @@ const AdminDashboard = () => {
           logoUrl: v.logo_url,
           coverImageUrl: v.cover_image_url,
           galleryUrls: v.gallery_urls || [],
-          isPublic: v.is_public || false
+          isPublic: v.is_public || false,
+          userId: v.user_id
         }));
         setVendors(mappedVendors);
       }
@@ -495,7 +614,8 @@ const AdminDashboard = () => {
             groupSizeMax: s.group_size_max,
             retailPrice: s.retail_price,
             currency: s.currency,
-            netPrice: (s.retail_price * 0.85).toFixed(2),
+            netPrice: s.net_price ?? s.retail_price,
+            commission: s.commission ?? 0,
             imageUrls: s.image_urls || [],
             languagesOffered: s.languages_offered || [],
             operatingDays: s.operating_days || [],
@@ -518,8 +638,8 @@ const AdminDashboard = () => {
           pricing: services.map((s: any) => ({
             currency: s.currency,
             retailPrice: s.retail_price,
-            netPrice: (s.retail_price * 0.85).toFixed(2),
-            commission: s.commission_percent || 0, // Ensure commission is mapped if needed
+            netPrice: s.net_price ?? s.retail_price,
+            commission: s.commission ?? 0,
             dailyCapacity: s.daily_capacity
           })),
         };
@@ -771,6 +891,228 @@ const AdminDashboard = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Vendor Details</DialogTitle>
+            <DialogDescription>
+              Update vendor profile information. The vendor will be notified of these changes.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="businessName">Business Name</Label>
+              <Input
+                id="businessName"
+                value={editFormData.business_name || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, business_name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="vendorType">Vendor Type</Label>
+              <Select
+                value={editFormData.vendor_type}
+                onValueChange={(val) => setEditFormData({ ...editFormData, vendor_type: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Accommodation">Accommodation</SelectItem>
+                  <SelectItem value="Activity Provider">Activity Provider</SelectItem>
+                  <SelectItem value="Transportation">Transportation</SelectItem>
+                  <SelectItem value="Tour Guide">Tour Guide</SelectItem>
+                  <SelectItem value="Restaurant">Restaurant</SelectItem>
+                  <SelectItem value="Shopping">Shopping</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="contactPerson">Contact Person</Label>
+              <Input
+                id="contactPerson"
+                value={editFormData.contact_person || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, contact_person: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                value={editFormData.phone_number || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, phone_number: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="businessAddress">Business Address</Label>
+              <Textarea
+                id="businessAddress"
+                value={editFormData.business_address || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, business_address: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={editFormData.email || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="website">Website URL</Label>
+              <Input
+                id="website"
+                type="url"
+                value={editFormData.website || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, website: e.target.value })}
+              />
+            </div>
+
+            <Separator className="my-4" />
+            <h4 className="font-medium">Bank Details</h4>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bankName">Bank Name</Label>
+                <Input
+                  id="bankName"
+                  value={editFormData.bank_name || ""}
+                  onChange={(e) => setEditFormData({ ...editFormData, bank_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bankBranch">Branch</Label>
+                <Input
+                  id="bankBranch"
+                  value={editFormData.bank_branch || ""}
+                  onChange={(e) => setEditFormData({ ...editFormData, bank_branch: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="accountHolder">Account Holder</Label>
+              <Input
+                id="accountHolder"
+                value={editFormData.account_holder_name || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, account_holder_name: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="accountNumber">Account Number</Label>
+              <Input
+                id="accountNumber"
+                value={editFormData.account_number || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, account_number: e.target.value })}
+              />
+            </div>
+
+            <Separator className="my-4" />
+            <h4 className="font-medium">Payout Settings</h4>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="payoutFrequency">Frequency</Label>
+                <Select
+                  value={editFormData.payout_frequency}
+                  onValueChange={(val) => setEditFormData({ ...editFormData, payout_frequency: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Weekly">Weekly</SelectItem>
+                    <SelectItem value="Bi-Weekly">Bi-Weekly</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payoutCycle">Cycle</Label>
+                <Input
+                  id="payoutCycle"
+                  value={editFormData.payout_cycle || ""}
+                  onChange={(e) => setEditFormData({ ...editFormData, payout_cycle: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!!processingVendorId}>
+                {processingVendorId ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Shield className="w-5 h-5" />
+              Reset User Password
+            </DialogTitle>
+            <DialogDescription>
+              Enter a new password for this account. This will instantly update their login credentials.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="Minimum 6 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setResetPasswordOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={isResettingPassword || newPassword.length < 6}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {isResettingPassword ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                "Update Password"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-8 hidden md:flex">
@@ -787,17 +1129,17 @@ const AdminDashboard = () => {
                 </Badge>
               )}
             </TabsTrigger>
+            {(isAdmin || isManager) && (
+              <TabsTrigger value="public-vendors" className="gap-2">
+                <Globe className="w-4 h-4" />
+                Public Vendors
+              </TabsTrigger>
+            )}
             {isAdmin && (
-              <>
-                <TabsTrigger value="public-vendors" className="gap-2">
-                  <Globe className="w-4 h-4" />
-                  Public Vendors
-                </TabsTrigger>
-                <TabsTrigger value="managers" className="gap-2">
-                  <Users className="w-4 h-4" />
-                  Managers
-                </TabsTrigger>
-              </>
+              <TabsTrigger value="managers" className="gap-2">
+                <Users className="w-4 h-4" />
+                Managers
+              </TabsTrigger>
             )}
           </TabsList>
 
@@ -824,21 +1166,21 @@ const AdminDashboard = () => {
                     )}
                   </div>
                 </SelectItem>
+                {(isAdmin || isManager) && (
+                  <SelectItem value="public-vendors">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      Public Vendors
+                    </div>
+                  </SelectItem>
+                )}
                 {isAdmin && (
-                  <>
-                    <SelectItem value="public-vendors">
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-4 h-4" />
-                        Public Vendors
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="managers">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        Managers
-                      </div>
-                    </SelectItem>
-                  </>
+                  <SelectItem value="managers">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Managers
+                    </div>
+                  </SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -1086,6 +1428,13 @@ const AdminDashboard = () => {
                                 Generate Document
                               </DropdownMenuItem>
                               <DropdownMenuItem
+                                onClick={() => handleEditClick(vendor)}
+                                className="gap-2"
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 onClick={() => handleTogglePublic(vendor.id, !vendor.isPublic)}
                                 className="gap-2"
                               >
@@ -1100,6 +1449,21 @@ const AdminDashboard = () => {
                                     Make Public
                                   </>
                                 )}
+                              </DropdownMenuItem>
+                              <Separator className="my-1" />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (vendor.userId) {
+                                    setResetPasswordUserId(vendor.userId);
+                                    setResetPasswordOpen(true);
+                                  } else {
+                                    toast.error("User ID not found for this vendor");
+                                  }
+                                }}
+                                className="text-amber-600"
+                              >
+                                <Shield className="mr-2 h-4 w-4" />
+                                Reset Password
                               </DropdownMenuItem>
                               <Separator className="my-1" />
                               {vendor.status !== "approved" && (
@@ -1137,7 +1501,7 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          {isAdmin && (
+          {(isAdmin || isManager) && (
             <TabsContent value="public-vendors" className="space-y-6">
               <div className="flex justify-between items-center mb-6">
                 <div>
@@ -1267,7 +1631,19 @@ const AdminDashboard = () => {
                                 {manager.is_active ? "Active" : "Inactive"}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                onClick={() => {
+                                  setResetPasswordUserId(manager.id);
+                                  setResetPasswordOpen(true);
+                                }}
+                                title="Reset Password"
+                              >
+                                <Shield className="w-4 h-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1790,8 +2166,39 @@ const AdminDashboard = () => {
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 Net: {selectedVendor.pricing[index]?.currency}{" "}
-                                {selectedVendor.pricing[index]?.netPrice}
+                                {commissionValues[service.id] && !isNaN(Number(commissionValues[service.id]))
+                                  ? (Number(selectedVendor.pricing[index]?.retailPrice || 0) * (1 - Number(commissionValues[service.id]) / 100)).toFixed(2)
+                                  : selectedVendor.pricing[index]?.netPrice}
                               </p>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-1 mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold">Comm %</span>
+                                <Input
+                                  className="w-16 h-7 text-xs px-1 text-right"
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={commissionValues[service.id] || ""}
+                                  onChange={(e) => handleCommissionChange(service.id, e.target.value)}
+                                  placeholder="%"
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-[10px] font-bold uppercase"
+                                  onClick={() => handleUpdateCommission(service.id)}
+                                  disabled={updatingServiceId === service.id}
+                                >
+                                  {updatingServiceId === service.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Set"}
+                                </Button>
+                              </div>
+                              {commissionValues[service.id] && !isNaN(Number(commissionValues[service.id])) && (
+                                <div className="text-[10px] text-primary font-medium">
+                                  Preview: {selectedVendor.pricing[index]?.currency} {(Number(selectedVendor.pricing[index]?.retailPrice || 0) * (Number(commissionValues[service.id]) / 100)).toFixed(2)} (Net: {(Number(selectedVendor.pricing[index]?.retailPrice || 0) * (1 - Number(commissionValues[service.id]) / 100)).toFixed(2)})
+                                </div>
+                              )}
                             </div>
                             <Select
                               value={service.status || "pending"}

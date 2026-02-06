@@ -486,6 +486,15 @@ class VendorService {
     }
   }
 
+  async resetPassword(userId: string, password: string): Promise<any> {
+    try {
+      const response = await api.patch(`/api/admin/users/${userId}/password`, { password });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to reset password');
+    }
+  }
+
   // Get current vendor's profile
   async getVendorProfile(): Promise<any> {
     try {
@@ -629,6 +638,39 @@ class VendorService {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to delete file');
+    }
+  }
+
+  async adminUpdateVendorProfile(vendorId: string, data: any): Promise<any> {
+    try {
+      const payload = {
+        business_name: data.business_name,
+        vendor_type: data.vendor_type,
+        contact_person: data.contact_person,
+        phone_number: data.phone_number,
+        business_address: data.business_address,
+        operating_areas: data.operating_areas,
+        email: data.email,
+        website: data.website,
+        bank_name: data.bank_name,
+        account_holder_name: data.account_holder_name,
+        account_number: data.account_number,
+        bank_branch: data.bank_branch,
+        payout_frequency: data.payout_frequency,
+        payout_cycle: data.payout_cycle,
+        payout_date: data.payout_date,
+        reg_certificate_url: data.reg_certificate_url,
+        nic_passport_url: data.nic_passport_url,
+        tourism_license_url: data.tourism_license_url
+      };
+
+      // Remove undefined values
+      Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
+
+      const response = await api.patch(`/api/admin/vendors/${vendorId}/profile`, payload);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to update vendor profile');
     }
   }
 
