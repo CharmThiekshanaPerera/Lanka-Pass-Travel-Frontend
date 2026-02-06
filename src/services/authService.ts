@@ -5,6 +5,7 @@ export interface User {
   email: string;
   name: string;
   role: string;
+  requires_password_reset?: boolean;
 }
 
 export interface AuthResponse {
@@ -44,7 +45,6 @@ export const authService = {
 
     return response.data;
   },
-
   login: async (email: string, password: string): Promise<AuthResponse> => {
     const response = await api.post('/api/auth/login', {
       email,
@@ -56,6 +56,28 @@ export const authService = {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
 
+    return response.data;
+  },
+
+  changePassword: async (password: string, currentPassword: string): Promise<any> => {
+    const response = await api.post('/api/auth/change-password', {
+      password,
+      current_password: currentPassword
+    });
+
+    // Update local user data if needed
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      user.requires_password_reset = false;
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    return response.data;
+  },
+
+  forgotPassword: async (email: string): Promise<any> => {
+    const response = await api.post('/api/auth/forgot-password', { email });
     return response.data;
   },
 
