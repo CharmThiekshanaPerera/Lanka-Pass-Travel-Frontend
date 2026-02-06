@@ -475,7 +475,7 @@ class VendorService {
       if (adminNotes) {
         data.admin_notes = adminNotes;
       }
-      const response = await api.patch(`/api/vendor/${vendorId}/status`, data); // Note: Fix URL if it was different
+      const response = await api.patch(`/api/admin/vendors/${vendorId}`, data);
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Failed to update vendor status');

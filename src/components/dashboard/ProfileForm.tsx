@@ -383,7 +383,7 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-4xl mx-auto pb-10">
 
                 {/* Global Edit Controls */}
-                <Card className="border-l-4 border-l-primary shadow-sm sticky top-4 z-10 bg-background">
+                <Card className="border-l-4 border-l-primary shadow-sm sticky top-20 z-10 bg-background">
                     <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-primary/10 rounded-full">
