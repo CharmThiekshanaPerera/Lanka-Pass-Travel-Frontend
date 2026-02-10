@@ -14,15 +14,20 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
-          if (id.includes("react-dom") || id.includes("react-router-dom") || id.includes("react")) {
-            return "vendor-react";
-          }
           if (id.includes("@radix-ui")) return "vendor-radix";
           if (id.includes("recharts")) return "vendor-charts";
           if (id.includes("axios") || id.includes("zod") || id.includes("date-fns")) {
             return "vendor-utils";
           }
-          return "vendor";
+          if (
+            id.includes("/react/") ||
+            id.includes("react-dom") ||
+            id.includes("react-router-dom") ||
+            id.includes("scheduler")
+          ) {
+            return "vendor-react";
+          }
+          return;
         },
       },
     },
