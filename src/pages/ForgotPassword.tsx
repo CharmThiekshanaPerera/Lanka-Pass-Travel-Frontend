@@ -16,6 +16,7 @@ const ForgotPassword = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.info("Forgot password submit", { email });
         setIsLoading(true);
 
         try {

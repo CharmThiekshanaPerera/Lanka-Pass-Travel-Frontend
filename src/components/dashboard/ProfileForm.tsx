@@ -311,6 +311,14 @@ const ProfileForm = ({ initialData, onUpdate }: ProfileFormProps) => {
                 }
             });
 
+            const changedFieldKeys = Object.keys(changedValues);
+            const redactedFields = changedFieldKeys.filter((key) => key !== "accountNumber");
+            console.info("Vendor profile submit", {
+                vendorId: initialData.id,
+                changedFields: redactedFields,
+                hasAccountNumberChange: changedFieldKeys.includes("accountNumber"),
+            });
+
             if (!hasChanges) {
                 toast.info("No changes detected");
                 setIsUpdating(false);

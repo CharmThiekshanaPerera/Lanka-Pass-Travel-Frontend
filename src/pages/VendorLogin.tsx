@@ -32,6 +32,7 @@ const VendorLogin = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.info("Vendor login submit", { email, rememberMe });
     setIsLoading(true);
 
     try {

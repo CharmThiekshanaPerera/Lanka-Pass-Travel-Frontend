@@ -246,6 +246,14 @@ const AdminDashboard = () => {
     e.preventDefault();
     if (!editingVendor) return;
 
+    const updatedFields = Object.entries(editFormData)
+      .filter(([, value]) => value !== undefined && value !== null)
+      .map(([key]) => key);
+    console.info("Admin vendor edit submit", {
+      vendorId: editingVendor.id,
+      fields: updatedFields,
+    });
+
     try {
       setProcessingVendorId(editingVendor.id);
       await vendorService.adminUpdateVendorProfile(editingVendor.id, editFormData);
@@ -353,6 +361,10 @@ const AdminDashboard = () => {
       return;
     }
 
+    console.info("Admin reset password submit", {
+      userId: resetPasswordUserId,
+      hasPassword: newPassword.length > 0,
+    });
     setIsResettingPassword(true);
     try {
       await vendorService.resetPassword(resetPasswordUserId, newPassword);
@@ -465,6 +477,10 @@ const AdminDashboard = () => {
       return;
     }
 
+    console.info("Admin create manager submit", {
+      name: newManager.name,
+      email: newManager.email,
+    });
     setIsCreatingManager(true);
     try {
       await vendorService.createManager(newManager);
