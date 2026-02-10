@@ -72,6 +72,114 @@ Notes:
 
 ---
 
+### 1.3 POST /api/auth/send-otp (SMS)
+- Purpose: Send a one-time password (OTP) to a user's phone for login/verification.
+- Method: POST
+- URL: `{{API_URL}}/api/auth/send-otp`
+- Headers: `Content-Type: application/json`
+
+Example request body (SMS):
+```json
+{
+  "phone": "+94770000000",
+  "purpose": "login",
+  "via": "sms"
+}
+```
+
+Expected responses:
+- 200: OTP queued/sent — `{ "success": true, "message": "OTP sent" }`
+- 429: Rate limit — `{ "success": false, "message": "Too many requests" }`
+
+cURL:
+```bash
+curl -s -X POST "{{API_URL}}/api/auth/send-otp" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+94770000000","purpose":"login","via":"sms"}'
+```
+
+Postman test notes:
+- Use `{{TEST_PHONE}}` variable for different test numbers.
+- The backend may return an `otpId` to validate in subsequent verify requests.
+
+Postman Tests tab snippet (save otpId if provided):
+```javascript
+const body = pm.response.json();
+if (body.otpId) pm.environment.set('OTP_ID', body.otpId);
+```
+
+---
+
+### 1.4 POST /api/auth/send-otp-email (Email OTP)
+- Purpose: Send an OTP code via email for verification or passwordless login.
+- Method: POST
+- URL: `{{API_URL}}/api/auth/send-otp-email`
+- Headers: `Content-Type: application/json`
+
+Example request body (Email):
+```json
+{
+  "email": "testuser@lankapass.test",
+  "purpose": "password_reset"
+}
+```
+
+Expected responses:
+- 200: Email queued/sent — `{ "success": true, "message": "OTP email sent" }`
+- 400: Invalid email — `{ "success": false, "message": "Invalid email" }`
+
+cURL:
+```bash
+curl -s -X POST "{{API_URL}}/api/auth/send-otp-email" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"testuser@lankapass.test","purpose":"password_reset"}'
+```
+
+Postman Tests tab snippet (save otpId if provided):
+```javascript
+const body = pm.response.json();
+if (body.otpId) pm.environment.set('OTP_ID', body.otpId);
+```
+
+---
+
+### 1.5 POST /api/notifications/send-email
+- Purpose: Send arbitrary transactional emails (confirmation, receipts, notifications).
+- Method: POST
+- URL: `{{API_URL}}/api/notifications/send-email`
+- Headers: `Content-Type: application/json`, `Authorization: Bearer {{ACCESS_TOKEN}}` (if protected)
+
+Example request body:
+```json
+{
+  "to": "recipient@example.com",
+  "subject": "Test Email from Lanka Pass",
+  "template": "generic_notification",
+  "templateData": {
+    "userName": "Test User",
+    "message": "This is a test message sent from Postman."
+  }
+}
+```
+
+Expected responses:
+- 200: `{ "success": true, "message": "Email sent" }`
+- 400/422: Validation errors when required fields missing
+
+cURL:
+```bash
+curl -s -X POST "{{API_URL}}/api/notifications/send-email" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {{ACCESS_TOKEN}}" \
+  -d '{"to":"recipient@example.com","subject":"Test Email","template":"generic_notification","templateData":{"userName":"Test User","message":"Test"}}'
+```
+
+Postman convenience:
+- Add `{{EMAIL_TEST_RECIPIENT}}` environment variable.
+- If your backend uses SendGrid, ensure `VITE_EMAIL_SERVICE_KEY` (server-side) is configured — do NOT place that key in Postman unless in a private workspace.
+
+---
+
 ## 2) Supabase quick check (client-side)
 
 The frontend uses Supabase for some functionality. You can validate Supabase connectivity from Postman using the REST interface.
