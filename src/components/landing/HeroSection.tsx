@@ -50,8 +50,12 @@ const HeroSection = () => {
         return (
           <div
             key={`bg-${index}`}
-            style={{ willChange: "opacity" }}
-            className={`absolute inset-0 transition-opacity duration-[7000ms] ease-in-out ${isCurrent ? "opacity-100 z-20 visible" :
+            style={{
+              willChange: "opacity",
+              transitionDuration: "7000ms",
+              transitionTimingFunction: "ease-in-out",
+            }}
+            className={`absolute inset-0 transition-opacity ${isCurrent ? "opacity-100 z-20 visible" :
               isPrevious ? "opacity-100 z-10 visible" :
                 "opacity-0 z-0 invisible"
               }`}
@@ -83,8 +87,12 @@ const HeroSection = () => {
             return (
               <div
                 key={`content-${index}`}
-                style={{ willChange: "opacity, transform" }}
-                className={`absolute inset-0 flex flex-col items-center transition-all duration-[7000ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${isCurrent
+                style={{
+                  willChange: "opacity, transform",
+                  transitionDuration: "7000ms",
+                  transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)",
+                }}
+                className={`absolute inset-0 flex flex-col items-center transition-all ${isCurrent
                   ? "opacity-100 translate-y-0 scale-100 z-20 visible"
                   : isPrevious
                     ? "opacity-0 -translate-y-4 scale-105 z-10 visible pointer-events-none"
