@@ -82,7 +82,7 @@ const VendorLogin = () => {
       {/* Back to Home */}
       <Link
         to="/"
-        className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors glass-navbar px-4 py-2 rounded-full"
+        className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors glass-navbar px-4 py-2 rounded-full text-sm"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Back to Home</span>

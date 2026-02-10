@@ -334,7 +334,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
                 <Label className="text-sm font-medium">
                   Enter Verification Code <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -355,7 +355,7 @@ const Step7Agreement = ({ formData, updateFormData, onSubmit, isSubmitting }: St
                     disabled={resendCooldown > 0}
                     variant="outline"
                     type="button"
-                    className="h-12 min-w-[100px]"
+                    className="h-12 w-full sm:w-auto min-w-[100px]"
                   >
                     {resendCooldown > 0 ? formatTime(resendCooldown) : "Resend"}
                   </Button>

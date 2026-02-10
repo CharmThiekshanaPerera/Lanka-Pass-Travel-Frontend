@@ -70,7 +70,7 @@ const vendorTypes = [
 const VendorTypes = () => {
   return (
     <section id="vendor-types" className="py-20 md:py-28 glass-section relative overflow-hidden">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-secondary font-semibold text-sm uppercase tracking-wider">

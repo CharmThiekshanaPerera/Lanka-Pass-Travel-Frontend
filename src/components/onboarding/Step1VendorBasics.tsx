@@ -329,7 +329,7 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
           </div>
 
           <div className="space-y-2">
-            <div className="flex gap-2 items-stretch">
+            <div className="flex flex-col sm:flex-row gap-2 items-stretch">
               <div className="flex-1">
                 <div className={`
         relative border rounded-lg transition-all duration-200
@@ -359,7 +359,7 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
                   onClick={handleSendVerification}
                   disabled={!isMobileNumberValid() || isVerifying}
                   variant={isVerifying ? "outline" : "default"}
-                  className="whitespace-nowrap min-w-[100px] h-12"
+                  className="w-full sm:w-auto whitespace-nowrap min-w-[100px] h-12"
                 >
                   {isVerifying ? "Sending..." : "Send OTP"}
                 </Button>
@@ -391,7 +391,7 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Input
                       type="text"
                       inputMode="numeric"
@@ -410,13 +410,13 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
                       type="button"
                       onClick={handleVerifyOtp}
                       disabled={otp.length !== 6}
-                      className="h-12 min-w-[120px]"
+                      className="h-12 w-full sm:w-auto min-w-[120px]"
                     >
                       Verify OTP
                     </Button>
                   </div>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <Button
                       type="button"
                       variant="ghost"
@@ -451,8 +451,8 @@ const Step1VendorBasics = ({ formData, updateFormData }: Step1Props) => {
                 </div>
 
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <p>• The code will expire in 10 minutes</p>
-                  <p>• Didn't receive the code? Check your spam folder or request a new code</p>
+                  <p>- The code will expire in 10 minutes</p>
+                  <p>- Didn't receive the code? Check your spam folder or request a new code</p>
                 </div>
               </div>
             </div>

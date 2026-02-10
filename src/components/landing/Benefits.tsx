@@ -51,7 +51,7 @@ const Benefits = () => {
   return (
     <section className="py-24 md:py-32 bg-gradient-to-br from-primary via-ocean to-secondary relative overflow-hidden">
       {/* Decorative Elements */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-primary/8 via-transparent to-secondary/8 rounded-full blur-3xl" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[70vw] h-[70vw] max-w-[800px] max-h-[800px] bg-gradient-to-br from-primary/8 via-transparent to-secondary/8 rounded-full blur-3xl" />
 
       <div className="container mx-auto px-4 relative z-10">
         {/* Section Header */}
