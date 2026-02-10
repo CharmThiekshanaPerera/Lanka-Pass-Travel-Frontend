@@ -1,10 +1,15 @@
 // lib/api.ts
 import axios from 'axios';
 
+const getBaseUrl = () =>
+  window.__APP_CONFIG__?.API_URL ||
+  import.meta.env.VITE_API_URL ||
+  'https://13.212.50.145';
+
 // Create axios instance
 export const api = axios.create({
   //  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-  baseURL: import.meta.env.VITE_API_URL || 'https://13.212.50.145',
+  baseURL: getBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,6 +18,7 @@ export const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
+    config.baseURL = getBaseUrl();
     // Add auth token if available
     const token = localStorage.getItem('access_token');
     if (token) {

@@ -4,12 +4,16 @@ import { authService } from '../services/authService';
 const TestConnection = () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState<string>('');
+  const apiBaseUrl =
+    window.__APP_CONFIG__?.API_URL ||
+    import.meta.env.VITE_API_URL ||
+    'https://13.212.50.145';
 
   const testConnection = async () => {
     setStatus('loading');
     try {
       // Test backend connection
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/test`);
+      const response = await fetch(`${apiBaseUrl}/api/test`);
       const data = await response.json();
       
       if (data.success) {
@@ -96,7 +100,7 @@ const TestConnection = () => {
       </div>
       
       <div style={{ marginTop: '20px', fontSize: '12px', color: '#666' }}>
-        <div>Backend URL: {import.meta.env.VITE_API_URL}</div>
+        <div>Backend URL: {apiBaseUrl}</div>
         <div>Frontend URL: {window.location.origin}</div>
       </div>
     </div>
