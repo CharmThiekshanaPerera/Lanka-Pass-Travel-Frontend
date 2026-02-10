@@ -138,3 +138,10 @@ dist
 # OS
 .DS_Store
 Thumbs.db
+
+# Sensitive docs
+ENV_SECURITY_NOTES.md
+
+# All env variants
+.env.*
+
