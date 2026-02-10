@@ -407,6 +407,16 @@ const ServicesList = ({ services: initialServices, onRefresh }: { services: any[
   };
 
   async function onSubmit(values: ServiceFormValues) {
+    console.info("Service form submit", {
+      mode: editingService ? "edit" : "create",
+      serviceId: editingService?.id,
+      serviceName: values.serviceName,
+      serviceCategory: values.serviceCategory,
+      retailPrice: values.retailPrice,
+      currency: values.currency,
+      imagesCount: Array.isArray(values.imageUrls) ? values.imageUrls.length : 0,
+      filesSelected: selectedFiles.length,
+    });
     setIsSaving(true);
     try {
       let response;

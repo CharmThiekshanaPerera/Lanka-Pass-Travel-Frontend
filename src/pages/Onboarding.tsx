@@ -128,6 +128,13 @@ const Onboarding = () => {
   };
 
   const handleSubmit = async () => {
+    console.info("Vendor onboarding submit", {
+      vendorType: formData.vendorType,
+      businessName: formData.businessName,
+      email: formData.email,
+      servicesCount: Array.isArray(formData.services) ? formData.services.length : 0,
+      operatingAreasCount: Array.isArray(formData.operatingAreas) ? formData.operatingAreas.length : 0,
+    });
     setIsSubmitting(true);
     try {
       const result = await vendorService.registerVendor(formData);

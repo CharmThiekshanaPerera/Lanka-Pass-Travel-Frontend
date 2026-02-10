@@ -38,6 +38,7 @@ const AdminRegister = () => {
             return;
         }
 
+        console.info("Admin register submit", { name, email });
         setIsLoading(true);
 
         try {

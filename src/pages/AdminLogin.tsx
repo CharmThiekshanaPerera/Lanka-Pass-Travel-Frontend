@@ -33,6 +33,7 @@ const AdminLogin = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.info("Admin login submit", { email });
         setIsLoading(true);
 
         try {

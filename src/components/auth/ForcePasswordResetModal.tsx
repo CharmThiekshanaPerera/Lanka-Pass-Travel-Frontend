@@ -64,6 +64,9 @@ export const ForcePasswordResetModal = () => {
             return;
         }
 
+        console.info("Force password reset submit", {
+            hasCurrentPassword: currentPassword.length > 0,
+        });
         setIsSubmitting(true);
         try {
             await authService.changePassword(password, currentPassword);

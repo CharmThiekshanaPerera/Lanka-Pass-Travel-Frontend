@@ -42,6 +42,9 @@ export const ChangePasswordModal = ({ open, onOpenChange }: ChangePasswordModalP
             return;
         }
 
+        console.info("Change password submit", {
+            hasCurrentPassword: currentPassword.length > 0,
+        });
         setIsSubmitting(true);
         try {
             await authService.changePassword(newPassword, currentPassword);
