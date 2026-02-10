@@ -6,7 +6,7 @@ window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
 window.__APP_CONFIG__.LOCAL_API_URL =
   window.__APP_CONFIG__.LOCAL_API_URL || "http://localhost:8000";
 window.__APP_CONFIG__.PROD_API_URL =
-  window.__APP_CONFIG__.PROD_API_URL || "https://13.212.50.145";
+  window.__APP_CONFIG__.PROD_API_URL || "https://api.lankapasstravel.com";
 window.__APP_CONFIG__.API_URL =
   window.__APP_CONFIG__.API_URL || window.__APP_CONFIG__.LOCAL_API_URL;
 
