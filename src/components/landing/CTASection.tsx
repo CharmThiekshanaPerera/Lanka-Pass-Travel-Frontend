@@ -30,7 +30,7 @@ const CTASection = () => {
         ))}
       </div>
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center max-w-3xl mx-auto">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full px-5 py-2 mb-8 border border-white/20 shadow-lg">
@@ -40,19 +40,19 @@ const CTASection = () => {
             </span>
           </div>
 
-          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl font-black text-white mb-8 leading-[1.1] drop-shadow-xl">
+          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-6 sm:mb-8 leading-[1.1] drop-shadow-xl">
             Ready to Transform Your Tourism Business?
           </h2>
-          <p className="text-white font-medium text-lg md:text-xl mb-12 leading-relaxed opacity-90">
+          <p className="text-white font-medium text-base sm:text-lg md:text-xl mb-10 sm:mb-12 leading-relaxed opacity-90">
             Take the first step towards reaching thousands of travelers.
             Our onboarding process takes just 15 minutes, and our team is here to help you every step of the way.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-5 justify-center mb-16 px-4">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 justify-center mb-12 sm:mb-16 px-4">
             <Link to="/onboarding" className="w-full sm:w-auto">
               <Button
                 size="xl"
-                className="w-full bg-white text-primary hover:bg-white/90 font-bold h-16 px-10 rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 text-lg"
+                className="w-full bg-white text-primary hover:bg-white/90 font-bold h-14 sm:h-16 px-8 sm:px-10 rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 text-base sm:text-lg"
               >
                 Start Onboarding Now
                 <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
@@ -62,7 +62,7 @@ const CTASection = () => {
               <Button
                 size="xl"
                 variant="heroOutline"
-                className="w-full h-16 px-10 rounded-2xl border-white/40 text-white font-bold hover:bg-white/10 text-lg"
+                className="w-full h-14 sm:h-16 px-8 sm:px-10 rounded-2xl border-white/40 text-white font-bold hover:bg-white/10 text-base sm:text-lg"
               >
                 Have Questions?
               </Button>

@@ -47,10 +47,10 @@ const FeaturedVendors = () => {
   return (
     <section className="py-20 md:py-28 bg-sand relative overflow-hidden">
       {/* Decorative Elements */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-80 h-80 bg-secondary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+      <div className="absolute top-0 right-0 w-[60vw] h-[60vw] max-w-[24rem] max-h-[24rem] bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-[50vw] h-[50vw] max-w-[20rem] max-h-[20rem] bg-secondary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>

@@ -174,7 +174,7 @@ const Onboarding = () => {
     <div className="min-h-screen bg-sand">
       {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-sunset flex items-center justify-center">
@@ -191,7 +191,7 @@ const Onboarding = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-5xl">
         {/* Step Indicator */}
         <div className="mb-10">
           <StepIndicator
@@ -203,14 +203,14 @@ const Onboarding = () => {
         </div>
 
         {/* Step Content */}
-        <div className="bg-card rounded-2xl shadow-card p-6 md:p-10">
+        <div className="bg-card rounded-2xl shadow-card p-4 sm:p-6 md:p-10">
           {renderStep()}
         </div>
 
         {/* Navigation Buttons */}
         {currentStep < 6 && (
-          <div className="flex justify-between mt-8">
-            <Button variant="back" size="lg" onClick={handleBack} disabled={currentStep === 1}>
+          <div className="flex flex-col sm:flex-row gap-3 sm:justify-between mt-8">
+            <Button variant="back" size="lg" onClick={handleBack} disabled={currentStep === 1} className="w-full sm:w-auto">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
@@ -218,7 +218,7 @@ const Onboarding = () => {
               variant="next"
               size="lg"
               onClick={handleNext}
-              className={currentStep === 1 && !formData.phoneVerified ? "opacity-50 cursor-not-allowed" : ""}
+              className={`w-full sm:w-auto ${currentStep === 1 && !formData.phoneVerified ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               Continue
               <ArrowRight className="w-4 h-4 ml-2" />

@@ -37,7 +37,7 @@ const faqs = [
 const FAQ = () => {
   return (
     <section className="py-20 md:py-28 glass-section relative overflow-hidden">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
           {/* Left - Header */}
           <div className="lg:sticky lg:top-24 lg:self-start">

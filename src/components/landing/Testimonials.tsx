@@ -75,7 +75,7 @@ const Testimonials = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-foreground/95 via-foreground/85 to-foreground/70" />
       </div>
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left - Section Info */}
           <div>
@@ -91,7 +91,7 @@ const Testimonials = () => {
             </p>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
               <div className="text-center p-4 rounded-xl bg-card/10 backdrop-blur-sm border border-white/10">
                 <div className="font-display text-3xl font-bold text-primary">4.9</div>
                 <div className="flex justify-center mt-1 mb-1">
@@ -114,7 +114,7 @@ const Testimonials = () => {
 
           {/* Right - Testimonial Card */}
           <div className="relative">
-            <div className="bg-card rounded-3xl p-8 shadow-elevated relative overflow-hidden">
+            <div className="bg-card rounded-3xl p-6 sm:p-8 shadow-elevated relative overflow-hidden">
               {/* Quote Icon */}
               <Quote className="absolute top-6 right-6 w-12 h-12 text-primary/10" />
 

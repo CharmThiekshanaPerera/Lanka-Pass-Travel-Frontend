@@ -248,7 +248,7 @@ const VendorDashboard = () => {
       <div className="lg:ml-64">
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-sm border-b">
-          <div className="flex items-center justify-between px-4 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -318,7 +318,7 @@ const VendorDashboard = () => {
         </header>
 
         {/* Content Area */}
-        <main className="p-4 lg:p-8">
+        <main className="p-4 sm:p-6 lg:p-8 min-w-0">
           {activeTab === "overview" && (
             <div className="space-y-8">
               <DashboardStats stats={stats} serviceCount={services.length} />

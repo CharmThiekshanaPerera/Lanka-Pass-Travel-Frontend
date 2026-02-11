@@ -311,20 +311,20 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
           {/* Duration */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Duration</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 type="number"
                 placeholder="e.g., 2"
                 value={service.durationValue}
                 onChange={(e) => updateService(index, "durationValue", e.target.value)}
-                className="w-24"
+                className="w-full sm:w-24"
                 disabled={service.serviceCategory === "Merchant"}
               />
               <Select
                 value={service.durationUnit}
                 onValueChange={(value) => updateService(index, "durationUnit", value)}
               >
-                <SelectTrigger className="w-32 h-12" disabled={service.serviceCategory === "Merchant"}>
+                <SelectTrigger className="w-full sm:w-32 h-12" disabled={service.serviceCategory === "Merchant"}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -370,13 +370,13 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
           {/* Group Size */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Group Size</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Input
                 type="number"
                 placeholder="Min"
                 value={service.groupSizeMin}
                 onChange={(e) => updateService(index, "groupSizeMin", e.target.value)}
-                className="w-24"
+                className="w-full sm:w-24"
                 disabled={service.serviceCategory === "Merchant"}
               />
               <span className="text-muted-foreground">to</span>
@@ -385,7 +385,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 placeholder="Max"
                 value={service.groupSizeMax}
                 onChange={(e) => updateService(index, "groupSizeMax", e.target.value)}
-                className="w-24"
+                className="w-full sm:w-24"
                 disabled={service.serviceCategory === "Merchant"}
               />
               <span className="text-muted-foreground">people</span>
@@ -415,7 +415,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
             <p className="text-xs text-muted-foreground">
               Select all days when this service is available
             </p>
-            <div className="grid grid-cols-7 gap-2 max-w-md">
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 max-w-full">
               {days.map((day) => (
                 <button
                   key={day}
@@ -516,7 +516,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 placeholder="9"
                 value={service.operatingHoursFrom}
                 onChange={(e) => updateService(index, "operatingHoursFrom", e.target.value)}
-                className="w-20 h-12"
+                className="w-full sm:w-20 h-12"
                 min="1"
                 max="12"
               />
@@ -524,7 +524,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 value={service.operatingHoursFromPeriod}
                 onValueChange={(value) => updateService(index, "operatingHoursFromPeriod", value)}
               >
-                <SelectTrigger className="w-20 h-12">
+                <SelectTrigger className="w-full sm:w-20 h-12">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -538,7 +538,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 placeholder="5"
                 value={service.operatingHoursTo}
                 onChange={(e) => updateService(index, "operatingHoursTo", e.target.value)}
-                className="w-20 h-12"
+                className="w-full sm:w-20 h-12"
                 min="1"
                 max="12"
               />
@@ -546,7 +546,7 @@ const Step3ServiceDetails = ({ formData, updateFormData }: Step3Props) => {
                 value={service.operatingHoursToPeriod}
                 onValueChange={(value) => updateService(index, "operatingHoursToPeriod", value)}
               >
-                <SelectTrigger className="w-20 h-12">
+                <SelectTrigger className="w-full sm:w-20 h-12">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

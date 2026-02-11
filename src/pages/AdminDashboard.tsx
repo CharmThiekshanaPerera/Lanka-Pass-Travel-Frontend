@@ -826,8 +826,8 @@ const AdminDashboard = () => {
     <div className="min-h-screen pb-12">
       {/* Header */}
       <div className="glass-navbar sticky top-0 z-50 border-b border-border/50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
                 <LayoutDashboard className="w-5 h-5 text-primary-foreground" />
@@ -997,7 +997,7 @@ const AdminDashboard = () => {
             <Separator className="my-4" />
             <h4 className="font-medium">Bank Details</h4>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="bankName">Bank Name</Label>
                 <Input
@@ -1037,7 +1037,7 @@ const AdminDashboard = () => {
             <Separator className="my-4" />
             <h4 className="font-medium">Payout Settings</h4>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="payoutFrequency">Frequency</Label>
                 <Select
@@ -1272,9 +1272,9 @@ const AdminDashboard = () => {
                       className="pl-10"
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[150px]">
+                      <SelectTrigger className="w-full sm:w-[150px]">
                         <Filter className="w-4 h-4 mr-2" />
                         <SelectValue placeholder="Filter Status" />
                       </SelectTrigger>
@@ -1285,7 +1285,7 @@ const AdminDashboard = () => {
                         <SelectItem value="rejected">Rejected</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button variant="outline" className="gap-2" onClick={handleExport}>
+                    <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={handleExport}>
                       <Download className="w-4 h-4" />
                       Export
                     </Button>
@@ -1599,7 +1599,7 @@ const AdminDashboard = () => {
           {isAdmin && (
             <TabsContent value="managers">
               <Card className="glass-card border-0">
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <CardTitle className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-primary" />
                     System Managers
@@ -1610,9 +1610,10 @@ const AdminDashboard = () => {
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
+                  <div className="overflow-x-auto -mx-4 px-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
@@ -1668,7 +1669,8 @@ const AdminDashboard = () => {
                         ))
                       )}
                     </TableBody>
-                  </Table>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1684,7 +1686,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <Tabs defaultValue="updates" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 mb-6">
+                  <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2 mb-6">
                     <TabsTrigger value="updates" className="gap-2">
                       <FileText className="w-4 h-4" />
                       <span className="hidden xs:inline">Updates</span>
